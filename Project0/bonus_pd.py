@@ -62,11 +62,12 @@ if __name__ == '__main__':
 
     tag_size=0.16 # tag size in meters
 
-    t = 0.1
+    time = 0.1
 
     Kp = 1.5
-    Td = 0
-    Ti = 0.1
+    Td = 0.002
+    Kp_yaw = 1.5
+    Td_yaw = 0
     target = np.array([0, 0.5]) # 0.5 m away from tag
 
     prev_error = 0
@@ -97,19 +98,24 @@ if __name__ == '__main__':
                 # Rotate robot using proportional controller to make yaw 0
 
                 error = t - target
-                derror = (error - prev_error) / t
+                derror = (error - prev_error) / time
                 out = Kp * (error + Td * derror)
                 
                 x_speed = out[1]
                 y_speed = out[0]
+                # x_speed = 0
+                # y_speed = 0
 
                 yaw_error = pose[1][1]
-                dyaw_error = (yaw_error - prev_yaw_error) / t
-                yaw_out = Kp * (yaw_error + Td * dyaw_error)
+                dyaw_error = (yaw_error - prev_yaw_error) / time
+                yaw_out = Kp_yaw * (yaw_error + Td_yaw * dyaw_error)
 
                 z_speed = yaw_out * 250 # Yaw
                 print(x_speed, y_speed, z_speed)
-                ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=t)
+                ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=time)
+
+                prev_error = error
+                prev_yaw_error = yaw_error
 
             cv2.imshow("img", img)
             cv2.waitKey(10)

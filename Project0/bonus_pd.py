@@ -54,7 +54,6 @@ def find_pose_from_tag(K, detection):
     return p.reshape((3,)), r.reshape((3,))
 
 if __name__ == '__main__':
-
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
     ep_camera = ep_robot.camera
@@ -64,7 +63,8 @@ if __name__ == '__main__':
     tag_size=0.16 # tag size in meters
 
     Kp = 1.5
-    Kd = 0.5
+    Td = 0
+    Ti = 0.1
     target = np.array([0, 0.5]) # 0.5 m away from tag
 
     prev_error = 0
@@ -90,18 +90,19 @@ if __name__ == '__main__':
 
                 t = np.array([pose[0][0], pose[0][2]])
 
+                # Move robot towards tag at constant speed of 0.5 m/s
+                # Rotate robot using proportional controller to make yaw 0
+
                 error = t - target
                 derror = (error - prev_error) / 0.1
-                prev_error = error
-
-                out = Kp * error + Kd * derror
-
+                out = Kp * (error + Td * derror)
+                
                 x_speed = out[1]
-                # x_speed = 0
-                # y_speed = Pout[0]
-                y_speed = 0
-                z_speed = out[0] * 50
-                # z_speed = 0
+                y_speed = out[0]
+
+                yaw = -pose[1][1]
+
+                z_speed = -yaw * 250 # Yaw
                 print(x_speed, y_speed, z_speed)
                 ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=0.1)
 

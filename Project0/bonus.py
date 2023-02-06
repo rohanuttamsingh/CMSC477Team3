@@ -85,14 +85,23 @@ if __name__ == '__main__':
 
                 t = np.array([pose[0][0], pose[0][2]])
 
+                # Move robot towards tag at constant speed of 0.5 m/s
+                # Rotate robot using proportional controller to make yaw 0
+
                 error = t - target
                 dir_ = error / np.linalg.norm(error)
                 out = error * 0.5 # Tag moves at 0.5 m/s
                 out = out * 60 * 100 / np.pi / 10
 
+                # out = out / 10 # Debug
+
+                yaw = -pose[1][1]
+
                 x_speed = out[1]
-                y_speed = 0
-                z_speed = out[0]
+                y_speed = out[0]
+                # x_speed = 0
+                # y_speed = 0
+                z_speed = -yaw * 250 # Yaw
                 print(x_speed, y_speed, z_speed)
                 ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=0.1)
 

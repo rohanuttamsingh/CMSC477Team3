@@ -1,11 +1,13 @@
 """
 Given a map with known start and end.
 Plan global path of distinct waypoints.
+Find AprilTag in frame to locate robot in world frame.
 Repeat:
-    Find AprilTag in frame to locate robot in world frame.
     Reference global path to get path to next waypoint.
+    Select AprilTag to look at for this next path.
     Interpolate path to next waypoint.
     Use velocity controller to reach next waypoint.
+    Use heading controller to keep AprilTag in view.
 Until robot reaches goal.
 """
 import matplotlib.pyplot as plt

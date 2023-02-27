@@ -38,19 +38,32 @@ def find_pose_from_tag(K, detection):
 	return p.reshape((3,)), r.reshape((3,))
 
 
-def robot_to_world(pos,rot):
-	Rwa = rot
-	twa = pose[0]
+def world_velocity(posc,rotc,posw,rotw,vw):
+	Rca = rotc
+	Rac = np.linalg(Rca)
+	tca = posc[0]
 	pa = np.matrix.transpose([0 0 0 1])
-	pw = Rwa@pa +twa
+	
+	Tca = np.zeros((4,4))
+	Tca[0:3,0:3] = Rca
+	Tca[0:3,3] = tca
+	Tca[3,3] = 1
+	
+	Tac = np.linalg.inv(Tca)
+	Rwa = rotw
+	twa = posw[0]
+	
 	Twa = np.zeros((4,4))
 	Twa[0:3,0:3] = Rwa
 	Twa[0:3,3] = twa
 	Twa[3,3] = 1
+	  
+	pw = Twa@pa
+	Rwc = Rwa@Rac
+	pc = Twa@Tac@np.matrix.transpose([0 0 0 1])
 	
-	
-	pc = Tw@np.linalg.inv(Tc)@np.matrix.transpose([0 0 0 1])
-	return robot
+	vb = Rac@Rcw@vw
+	return vb
 
 if __name__ == '__main__':
 

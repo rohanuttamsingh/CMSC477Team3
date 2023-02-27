@@ -26,6 +26,7 @@ then mapping function is n(t) = (N-1) * (t/T)
 """
 
 import math
+from typing import List, Tuple
 
 """
 t = expected time elapsed
@@ -33,11 +34,11 @@ T = total expected runtime for path traversal
 pos = point representing current position
 path = array of points
 """
-def get_velocity(t: float, T: float, pos: tuple[float, float], path: list[tuple[float, float]], debug: bool = False):
+def get_velocity(t: float, T: float, pos: Tuple[float, float], path: List[Tuple[float, float]], debug: bool = False):
     n = math.ceil((len(path) - 1) * (t / T))  # represents index in path array of current expected position based on time t passed in, i.e. n = f(t)
     K = 1  # positive constant of control law
 
-    def dvelocity() -> tuple[float, float]:
+    def dvelocity() -> Tuple[float, float]:
         speed = 1  # a positive constant
         currentPos = path[n]
         nextPos = path[n+1]

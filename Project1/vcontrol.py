@@ -42,7 +42,7 @@ def world_velocity(posc,rotc,posw,rotw,vw):
 	Rca = rotc
 	Rac = np.linalg(Rca)
 	tca = posc[0]
-	pa = np.matrix.transpose([0 0 0 1])
+	pa = np.matrix.transpose([0, 0, 0, 1])
 	
 	Tca = np.zeros((4,4))
 	Tca[0:3,0:3] = Rca
@@ -60,19 +60,7 @@ def world_velocity(posc,rotc,posw,rotw,vw):
 	  
 	pw = Twa@pa
 	Rwc = Rwa@Rac
-	pc = Twa@Tac@np.matrix.transpose([0 0 0 1])
+	pc = Twa@Tac@np.matrix.transpose([0, 0, 0, 1])
 	
-	vb = Rac@Rcw@vw
+	vb = Rac@(Rwc.T)@vw
 	return vb
-
-if __name__ == '__main__':
-
-    ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="ap")
-    ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
-    ep_chassis = ep_robot.chassis
-
-    tag_size=0.16 # tag size in meters
-    pose = find_pose_from_tag(K, res)
-    print(pose)

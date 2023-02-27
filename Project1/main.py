@@ -3,7 +3,41 @@ import cv2
 import numpy as np
 from robomaster import robot
 from robomaster import camera
-import bonus_pd
+
+at_detector = Detector(
+    families="tag36h11",
+    nthreads=1,
+    quad_decimate=1.0,
+    quad_sigma=0.0,
+    refine_edges=1,
+    decode_sharpening=0.25,
+    debug=0
+)
+
+tag_size = 0.16
+
+def find_pose_from_tag(K, detection):
+    m_half_size = tag_size / 2
+
+    marker_center = np.array((0, 0, 0))
+    marker_points = []
+    marker_points.append(marker_center + (-m_half_size, m_half_size, 0))
+    marker_points.append(marker_center + ( m_half_size, m_half_size, 0))
+    marker_points.append(marker_center + ( m_half_size, -m_half_size, 0))
+    marker_points.append(marker_center + (-m_half_size, -m_half_size, 0))
+    _marker_points = np.array(marker_points)
+
+    object_points = _marker_points
+    image_points = detection.corners
+
+    pnp_ret = cv2.solvePnP(object_points, image_points, K, distCoeffs=None,flags=cv2.SOLVEPNP_IPPE_SQUARE)
+    if pnp_ret[0] == False:
+        raise Exception('Error solving PnP')
+
+    r = pnp_ret[1]
+    p = pnp_ret[2]
+
+    return p.reshape((3,)), r.reshape((3,))
 
 if __name__ == "__main__":
     """
@@ -23,23 +57,34 @@ if __name__ == "__main__":
 
     target = np.array([0, 0.5]) # 0.5 m away from tag
 
-    img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)   
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    gray.astype(np.uint8)
+    while True:
+        try:
+            img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)   
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            gray.astype(np.uint8)
 
-    K=np.array([[184.752, 0, 320], [0, 184.752, 180], [0, 0, 1]])
+            K=np.array([[184.752, 0, 320], [0, 184.752, 180], [0, 0, 1]])
 
-    results = bonus_pd.at_detector.detect(gray, estimate_tag_pose=False)
+            results = at_detector.detect(gray, estimate_tag_pose=False)
 
-    for res in results:
-        # If AprilTag in frame, only 1 result 
-        pose = bonus_pd.find_pose_from_tag(K, res)
-        rot, jaco = cv2.Rodrigues(pose[1], pose[1])
+            for res in results:
+                # If AprilTag in frame, only 1 result 
+                pose = find_pose_from_tag(K, res)
+                rot, jaco = cv2.Rodrigues(pose[1], pose[1])
 
-        pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
-        img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
-        cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
-        id = res.tag_id.decode("utf-8")
-        print(id)
-        t = np.array([pose[0][0], pose[0][2]])
+                pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
+                img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
+                cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
+                id = res.tag_id#.decode("utf-8")
+                print(id)
+                t = np.array([pose[0][0], pose[0][2]])
+
+            cv2.imshow("img", img)
+            cv2.waitKey(10)
+
+        except KeyboardInterrupt:
+            ep_camera.stop_video_stream()
+            ep_robot.close()
+            print('Exiting')
+            exit(1)
 

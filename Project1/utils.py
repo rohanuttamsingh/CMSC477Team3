@@ -2,6 +2,7 @@ import os
 import imageio
 import numpy as np
 import matplotlib.pyplot as plt
+from astar import astar
 
 def load_map(path):
     return np.loadtxt(path, delimiter=',', dtype=int)
@@ -34,6 +35,25 @@ def pr_to_path(pr, start, end):
             break
         curr = pr[curr]
     return path[::-1]
+
+def change_origin(path, origin):
+    origin_row = origin[0]
+    origin_col = origin[1]
+    return [(row - origin_row, col - origin_col) for row, col in path]
+
+def swap_xy(path):
+    return [(col, -row) for row, col in path]
+
+def get_path(map_path):
+    map_ = load_map(map_path)
+    graph, start, end = construct_graph(map_)
+    pr = astar(graph, start, end)
+    path = pr_to_path(pr, start, end)
+    origin = np.where(map_ == 3)
+    origin = (origin[0][0], origin[1][0])
+    path = change_origin(path, origin)
+    path = swap_xy(path)
+    return path
 
 def plot(map, pr, path):
     start = np.where(map == 2)

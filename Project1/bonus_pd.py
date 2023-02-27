@@ -62,7 +62,16 @@ if __name__ == '__main__':
 
     tag_size=0.16 # tag size in meters
 
+    time = 0.1
+
+    Kp = 1.5
+    Td = 0.002
+    Kp_yaw = 1.5
+    Td_yaw = 0
     target = np.array([0, 0.5]) # 0.5 m away from tag
+
+    prev_error = 0
+    prev_yaw_error = 0
 
     while True:
         try:
@@ -82,29 +91,31 @@ if __name__ == '__main__':
                 pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
                 img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
                 cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
-                id = res.tag_id.decode("utf-8")
-                print(id)
+
                 t = np.array([pose[0][0], pose[0][2]])
 
                 # Move robot towards tag at constant speed of 0.5 m/s
                 # Rotate robot using proportional controller to make yaw 0
 
                 error = t - target
-                dir_ = error / np.linalg.norm(error)
-                out = error * 0.5 # Tag moves at 0.5 m/s
-                out = out * 60 * 100 / np.pi / 10
-
-                # out = out / 10 # Debug
-
-                yaw = -pose[1][1]
-
+                derror = (error - prev_error) / time
+                out = Kp * (error + Td * derror)
+                
                 x_speed = out[1]
                 y_speed = out[0]
                 # x_speed = 0
                 # y_speed = 0
-                z_speed = -yaw * 250 # Yaw
+
+                yaw_error = pose[1][1]
+                dyaw_error = (yaw_error - prev_yaw_error) / time
+                yaw_out = Kp_yaw * (yaw_error + Td_yaw * dyaw_error)
+
+                z_speed = yaw_out * 250 # Yaw
                 print(x_speed, y_speed, z_speed)
-                ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=0.1)
+                ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=time)
+
+                prev_error = error
+                prev_yaw_error = yaw_error
 
             cv2.imshow("img", img)
             cv2.waitKey(10)

@@ -67,17 +67,26 @@ if __name__ == "__main__":
 
             results = at_detector.detect(gray, estimate_tag_pose=False)
 
-            for res in results:
-                # If AprilTag in frame, only 1 result 
-                pose = find_pose_from_tag(K, res)
-                rot, jaco = cv2.Rodrigues(pose[1], pose[1])
+            center_tag, center_pose = None, None
+            if len(results) == 1:
+                center_tag = results[0]
+                center_pose = find_pose_from_tag(K, center_tag)
+            else:
+                for tag in results:
+                    pose = find_pose_from_tag(K, tag)
+                    x = pose[0][0]
+                    if not center_pose or abs(x) < abs(center_pose[0][0]):
+                        center_tag, center_pose = tag, pose
+            
+            if center_tag:
+                rot, jaco = cv2.Rodrigues(center_pose[1], center_pose[1])
 
-                pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
+                pts = center_tag.corners.reshape((-1, 1, 2)).astype(np.int32)
                 img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
-                cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
-                id = res.tag_id#.decode("utf-8")
+                cv2.circle(img, tuple(center_tag.center.astype(np.int32)), 5, (0, 0, 255), -1)
+                id = center_tag.tag_id
                 print(id)
-                t = np.array([pose[0][0], pose[0][2]])
+                t = np.array([center_pose[0][0], center_pose[0][2]])
 
             cv2.imshow("img", img)
             cv2.waitKey(10)

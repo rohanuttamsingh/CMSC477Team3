@@ -4,6 +4,8 @@ import numpy as np
 from robomaster import robot
 from robomaster import camera
 import tagmap
+import utils
+import interpolate_path
 
 at_detector = Detector(
     families="tag36h11",
@@ -161,4 +163,34 @@ if __name__ == "__main__":
     current_pos = to_world_coords(32, pose, rot)
     print(current_pos)
 
-    
+    path = utils.get_path('map.csv')
+
+    while True:
+        curr = (current_pos[0], current_pos[1])
+        to_next_pt = interpolate_path.path_to_next_waypoint(path, curr)
+
+        while np.linalg.norm(curr, to_next_pt[-1]) > 0.1:
+            # Calculate robot current position from april tags
+            center_tag, center_pose = None, None
+            if len(results) == 1:
+                center_tag = results[0]
+                center_pose = find_pose_from_tag(K, center_tag)
+            else:
+                for tag in results:
+                    pose = find_pose_from_tag(K, tag)
+                    x = pose[0][0]
+                    if not center_pose or abs(x) < abs(center_pose[0][0]):
+                        center_tag, center_pose = tag, pose
+            
+            if center_tag:
+                center_rot, jaco = cv2.Rodrigues(center_pose[1], center_pose[1])
+
+                pts = center_tag.corners.reshape((-1, 1, 2)).astype(np.int32)
+                img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
+                cv2.circle(img, tuple(center_tag.center.astype(np.int32)), 5, (0, 0, 255), -1)
+
+                curr = to_world_coords(center_tag.id, center_pose, center_rot)
+
+            # Feed into velocity controller using interpolated path as ideal path
+            
+            

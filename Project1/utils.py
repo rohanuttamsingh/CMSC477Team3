@@ -3,6 +3,7 @@ import imageio
 import numpy as np
 import matplotlib.pyplot as plt
 from astar import astar
+from tagmap import unit
 
 def load_map(path):
     return np.loadtxt(path, delimiter=',', dtype=int)
@@ -44,6 +45,9 @@ def change_origin(path, origin):
 def swap_xy(path):
     return [(col, -row) for row, col in path]
 
+def change_unit(path):
+    return [(unit * x, unit *y) for x, y in path]
+
 def get_path(map_path):
     map_ = load_map(map_path)
     graph, start, end = construct_graph(map_)
@@ -53,6 +57,7 @@ def get_path(map_path):
     origin = (origin[0][0], origin[1][0])
     path = change_origin(path, origin)
     path = swap_xy(path)
+    path = change_unit(path)
     return path
 
 def plot(map, pr, path):

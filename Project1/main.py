@@ -125,6 +125,30 @@ if __name__ == "__main__":
             if found_32:
                 break
 
+            """
+            # After finding initial tag
+            center_tag, center_pose = None, None
+            if len(results) == 1:
+                center_tag = results[0]
+                center_pose = find_pose_from_tag(K, center_tag)
+            else:
+                for tag in results:
+                    pose = find_pose_from_tag(K, tag)
+                    x = pose[0][0]
+                    if not center_pose or abs(x) < abs(center_pose[0][0]):
+                        center_tag, center_pose = tag, pose
+            
+            if center_tag:
+                rot, jaco = cv2.Rodrigues(center_pose[1], center_pose[1])
+
+                pts = center_tag.corners.reshape((-1, 1, 2)).astype(np.int32)
+                img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
+                cv2.circle(img, tuple(center_tag.center.astype(np.int32)), 5, (0, 0, 255), -1)
+                id = center_tag.tag_id
+                print(id)
+                t = np.array([center_pose[0][0], center_pose[0][2]])
+            """
+
             cv2.imshow("img", img)
             cv2.waitKey(10)
 

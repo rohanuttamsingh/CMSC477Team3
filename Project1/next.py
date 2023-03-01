@@ -19,10 +19,7 @@ def path_to_next_waypoint(path, robot_world_pos):
     return res
 
 if __name__ == '__main__':
-    map_ = utils.load_map('Map.csv')
-    graph, start, end = utils.construct_graph(map_)
-    pr = astar(graph, start, end)
-    path = utils.pr_to_path(pr, start, end)
+    path = utils.get_path('Map.csv')
     print(path)
-    robot_world_pos = (2.9, 11.2)
+    robot_world_pos = (-9.2, 1.9)
     print(path_to_next_waypoint(path, robot_world_pos))

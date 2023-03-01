@@ -1,19 +1,3 @@
-# -*-coding:utf-8-*-
-# Copyright (c) 2020 DJI.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License in the file LICENSE.txt or at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 from pupil_apriltags import Detector
 import cv2
 import numpy as np
@@ -29,6 +13,8 @@ at_detector = Detector(
     decode_sharpening=0.25,
     debug=0
 )
+
+tag_size = 0.16
 
 def find_pose_from_tag(K, detection):
     m_half_size = tag_size / 2
@@ -53,7 +39,14 @@ def find_pose_from_tag(K, detection):
 
     return p.reshape((3,)), r.reshape((3,))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
+    """
+    Program flow:
+        startup -> assume roughly on starting point, facing towards 32
+        detect 32 and figure out exact location
+        calculate path
+        ...
+    """
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
     ep_camera = ep_robot.camera
@@ -82,29 +75,9 @@ if __name__ == '__main__':
                 pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
                 img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
                 cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
-                id = res.tag_id.decode("utf-8")
+                id = res.tag_id#.decode("utf-8")
                 print(id)
                 t = np.array([pose[0][0], pose[0][2]])
-
-                # Move robot towards tag at constant speed of 0.5 m/s
-                # Rotate robot using proportional controller to make yaw 0
-
-                error = t - target
-                dir_ = error / np.linalg.norm(error)
-                out = error * 0.5 # Tag moves at 0.5 m/s
-                out = out * 60 * 100 / np.pi / 10
-
-                # out = out / 10 # Debug
-
-                yaw = -pose[1][1]
-
-                x_speed = out[1]
-                y_speed = out[0]
-                # x_speed = 0
-                # y_speed = 0
-                z_speed = -yaw * 250 # Yaw
-                print(x_speed, y_speed, z_speed)
-                ep_chassis.drive_speed(x=x_speed, y=y_speed, z=z_speed, timeout=0.1)
 
             cv2.imshow("img", img)
             cv2.waitKey(10)
@@ -114,3 +87,4 @@ if __name__ == '__main__':
             ep_robot.close()
             print('Exiting')
             exit(1)
+

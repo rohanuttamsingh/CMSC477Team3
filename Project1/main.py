@@ -51,11 +51,13 @@ def to_world_coords(tag_id, posc, rotc):
         Rwa = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
 
     tag_pos = tagmap.tagmap[tag_id]
-    twa = np.array([[tag_pos[0]], [tag_pos[1]], 0])
+    twa = np.array([[tag_pos[0]], [tag_pos[1]], [0]])
 
     Rca = rotc
-    tca = posc[0]
-    pa = np.matrix.transpose([0, 0, 0, 1])
+    tca = -posc[0]
+    # Invert posc because find_pose_from_tag gives translation from april tag
+    # to camera, but we can translation from camera to april tag
+    pc = np.array([0, 0, 0, 1]).T
 	
     Tca = np.zeros((4,4))
     Tca[0:3,0:3] = Rca
@@ -66,10 +68,10 @@ def to_world_coords(tag_id, posc, rotc):
 
     Twa = np.zeros((4,4))
     Twa[0:3,0:3] = Rwa
-    Twa[0:3,3] = twa
+    Twa[0:3,3:] = twa
     Twa[3,3] = 1
 
-    return Twa@Tac@pa
+    return Twa@Tac@pc
     
 
 if __name__ == "__main__":
@@ -133,5 +135,6 @@ if __name__ == "__main__":
             exit(1)
 
     current_pos = to_world_coords(32, pose, rot)
+    print(current_pos)
 
     

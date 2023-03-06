@@ -46,7 +46,7 @@ def swap_xy(path):
     return [(col, -row) for row, col in path]
 
 def change_unit(path):
-    return [(unit * x, unit *y) for x, y in path]
+    return [(unit / 2 * x, unit / 2 * y) for x, y in path]
 
 def get_path(map_path):
     map_ = load_map(map_path)

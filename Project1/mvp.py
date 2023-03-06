@@ -7,6 +7,7 @@ import tagmap
 import utils
 from heading_control import heading_control
 from vcontrol import world_velocity
+from tagmap import unit
 
 at_detector = Detector(
     families="tag36h11",
@@ -94,9 +95,9 @@ if __name__ == "__main__":
 
     tag_size=0.16 # tag size in meters
 
-    K=np.array([[184.752, 0, 320], [0, 184.752, 180], [0, 0, 1]])
+    K=np.array([[184.752 * 1.7, 0, 320], [0, 184.752 * 1.7, 180], [0, 0, 1]])
 
-    path = utils.get_path('Map.csv')
+    path = utils.get_path('Map_stayaway.csv')
     curr_idx = 1
 
     found_32 = False
@@ -141,8 +142,10 @@ if __name__ == "__main__":
     while True:
         curr = (current_pos[0], current_pos[1])
         next_point = path[curr_idx]
+        print('moving to next point')
+        prev_vb = None
 
-        while np.linalg.norm(curr, next_point[-1]) > 0.1:
+        while np.linalg.norm(np.array(curr) - np.array(next_point)) > 0.2:
             try:
                 img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)   
                 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -158,8 +161,10 @@ if __name__ == "__main__":
                     for tag in results:
                         pose = find_pose_from_tag(K, tag)
                         x = pose[0][0]
+                        yaw = pose[1][2]
                         if not center_pose or abs(x) < abs(center_pose[0][0]):
-                            center_tag, center_pose = tag, pose
+                            if yaw <= 0.5 and abs(x) < 0.3: # Thresholds for when estimate is bad
+                                center_tag, center_pose = tag, pose
                 
                 if center_tag:
                     center_rot, jaco = cv2.Rodrigues(center_pose[1], center_pose[1])
@@ -176,9 +181,10 @@ if __name__ == "__main__":
                     y_velocity = velocity[1]
                     # z_velocity = heading_control(np.array([0, 0]), np.array([center_pose[1][0], center_pose[1][1]]))
                     z_velocity = 0
-                    vw = 2 * np.array([x_velocity, y_velocity, z_velocity])
-                    
-                    Rbc = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
+                    vw = np.array([x_velocity, y_velocity, z_velocity])
+
+                    Rbc = np.array([[0, 0, -1], [1, 0, 0], [0, 1, 0]])
+                    # Rbc = np.array([[-1, 0, 0], [0, 0, -1], [0, 1, 0]])
                     if center_tag.tag_id in tagmap.tags_top:
                         Rwa = np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]])
                     elif center_tag.tag_id in tagmap.tags_left:
@@ -188,14 +194,22 @@ if __name__ == "__main__":
                     else:     # in tagmap.tags_bottom
                         Rwa = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
                     Rac = center_rot.T
-                    vb = Rbc @ Rwa @ Rac @ vw
+                    Rwc = Rwa @ Rac
+                    Rcw = Rwc.T
+                    vb = 0.5 * Rbc @ Rcw @ vw
+                    prev_vb = vb
 
-                    ep_chassis.drive_speed(x=vb[0], y=vb[1], z=vb[2], timeout=0.1)
-                    print(f'pose: {current_pos}')
-                    print(f'velocity: {vb}')
+                    print(f'center_tag.tag_id: {center_tag.tag_id}')
+                    print(f'current_pos: {current_pos}')
+                else:
+                    vb = prev_vb
+                print(f'next_point: {next_point}')
+                print(f'vw: {vw}')
+                print(f'vb: {vb}')
+                ep_chassis.drive_speed(x=vb[0], y=vb[1], z=0, timeout=0.5)
 
-                    cv2.imshow("img", img)
-                    cv2.waitKey(10)
+                cv2.imshow("img", img)
+                cv2.waitKey(10)
 
             except KeyboardInterrupt:
                 ep_camera.stop_video_stream()
@@ -203,5 +217,4 @@ if __name__ == "__main__":
                 print('Exiting')
                 exit(1)
 
-            curr_idx += 1
-
+        curr_idx += 1

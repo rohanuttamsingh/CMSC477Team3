@@ -17,10 +17,12 @@ tagmap = {
     43: (-1.5 * unit,    2 * unit),
     44: (-2.5 * unit,    0),
     45: (-1.5 * unit,    0),
-    46: (  -2 * unit, -1.5 * unit)
+    46: (  -2 * unit, -1.5 * unit),
+
+    6: (-8.5 * unit,    0),
 }
 
 tags_top = [37]
 tags_bottom = [34, 35, 36, 46]
-tags_left = [30, 32, 38, 40, 42, 44]
+tags_left = [30, 32, 38, 40, 42, 44, 6]
 tags_right = [31, 33, 39, 41, 43, 45]

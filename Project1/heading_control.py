@@ -10,5 +10,5 @@ def heading_control(p_ad_c, p_a_c):
         Velocity that the robot should rotate at
     """
     K = 1
-    return -K * np.cross(p_ad_c, p_a_c)[0]
+    return -K * np.cross(p_ad_c, p_a_c)
     # Cross product is in R1 because p_ad_c and p_a_c are in R2

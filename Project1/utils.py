@@ -47,7 +47,6 @@ def swap_xy(path):
 
 def change_unit(path):
     return [(unit / 2 * x, unit / 2 * y) for x, y in path]
-    # return [(unit * x, unit * y) for x, y in path]
 
 def get_path(map_path):
     map_ = load_map(map_path)
@@ -60,65 +59,3 @@ def get_path(map_path):
     path = swap_xy(path)
     path = change_unit(path)
     return path
-
-def plot(map, pr, path):
-    start = np.where(map == 2)
-    end = np.where(map == 3)
-    walls = np.where(map == 1)
-    visited_points = list(pr.keys())
-    visited_rows = [point[0] for point in visited_points]
-    visited_cols = [point[1] for point in visited_points]
-    path_rows = [point[0] for point in path]
-    path_cols = [point[1] for point in path]
-    plt.scatter(*start, c='green', marker='x')
-    plt.scatter(*end, c='red', marker='x')
-    plt.scatter(*walls, c='black', marker='x')
-    plt.scatter(visited_rows, visited_cols, s=5, c='lightblue', marker='x')
-    plt.scatter(path_rows, path_cols, s=8, c='purple', marker='x')
-    plt.show()
-
-def animate(map, pr, path, title, out):
-    start = np.where(map == 2)
-    end = np.where(map == 3)
-    walls = np.where(map == 1)
-    visited_points = list(pr.keys())
-    visited_rows = [point[0] for point in visited_points]
-    visited_cols = [point[1] for point in visited_points]
-    path_rows = [point[0] for point in path]
-    path_cols = [point[1] for point in path]
-    frames = []
-    plt.scatter(*start, c='green', marker='x')
-    plt.scatter(*end, c='red', marker='x')
-    plt.scatter(*walls, c='black', marker='o')
-    plt.suptitle(title)
-    plt.title(f'Visited: {len(visited_points)}, Path Length: {len(path)}')
-    plt.savefig('start.jpg')
-    frames.append('start.jpg')
-    for i in range(0, len(visited_points), 1):
-        j = min(len(visited_points), i + 1)
-        plt.scatter(visited_rows[i : j], visited_cols[i : j], c='lightblue', marker='.')
-        plt.savefig(f'{i}.jpg')
-        frames.append(f'{i}.jpg')
-    plt.scatter(path_rows, path_cols, c='purple', marker='x')
-    plt.savefig('end.jpg')
-    with imageio.get_writer(out, mode='I') as writer:
-        for frame in frames:
-            i = imageio.imread(frame)
-            writer.append_data(i)
-            os.remove(frame)
-        i = imageio.imread('end.jpg')
-        for _ in range(100):
-            writer.append_data(i)
-    os.remove('end.jpg')
-
-
-# map_ = load_map('Map2.csv')
-# graph, start, end = construct_graph(map_)
-# pr = bfs(graph, start, end)
-# pr = dfs(graph, start, end)
-# pr = dijkstras(graph, start, end)
-# path = pr_to_path(pr, start, end)
-# print(path)
-# print(len(path))
-# plot(map_, pr, path)
-# animate(map_, pr, path)

@@ -54,7 +54,7 @@ def to_world_coords(tag_id, posc, rotc):
     tag_pos = tagmap.tagmap[tag_id]
     twa = np.array([[tag_pos[0]], [tag_pos[1]], [0]])
 
-    Rca = rotc#.T
+    Rca = rotc
     tca = -posc[0]
     print(tca)
     # Invert posc because find_pose_from_tag gives translation from april tag

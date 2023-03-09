@@ -21,12 +21,3 @@ def astar(graph, start, end):
                     heapq.heappush(q, (new_g, neighbor))
                     gs[neighbor] = (new_d, heuristic(neighbor))
     return pr
-
-if __name__ == '__main__':
-    map_path = input('Enter path to map CSV: ')
-    out_path = input('Enter path to save gif to: ')
-    map_ = utils.load_map(map_path)
-    graph, start, end = utils.construct_graph(map_)
-    pr = astar(graph, start, end)
-    path = utils.pr_to_path(pr, start, end)
-    utils.animate(map_, pr, path, f'A* {map_path}', out_path)

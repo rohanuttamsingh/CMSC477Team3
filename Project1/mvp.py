@@ -75,35 +75,6 @@ def to_world_coords(tag_id, posc, rotc):
 
     return Twa@Tac@pc
 
-def get_closest_tag(next_waypoint):
-    next_np = np.array(next_waypoint)
-    min_dist = float('inf')
-    closest_tag = None
-    for tag in tagmap.tagmap:
-        tag_np = np.array(tagmap.tagmap[tag])
-        dist = np.linalg.norm(next_np - tag_np)
-        if dist < min_dist:
-            closest_tag = tag
-            min_dist = dist
-    return closest_tag
-
-def get_distance_from_tag(curr, tag_id):
-    curr_np = np.array(curr)
-    tag_np = np.array(tagmap.tagmap[tag_id])
-    return np.linalg.norm(curr_np - tag_np)
-
-def pick_in_line_tag(prev_waypoint):
-    in_line_tag = None
-    for tag in tagmap.tagmap:
-        tag_pos = tagmap.tagmap[tag]
-        if prev_waypoint[0] == tag_pos[0] or prev_waypoint[1] == tag_pos[1]:
-            if in_line_tag:
-                if get_distance_from_tag(prev_waypoint, tag) < get_distance_from_tag(prev_waypoint, in_line_tag):
-                    in_line_tag = tag
-            else:
-                in_line_tag = tag
-    return in_line_tag
-
 
 if __name__ == "__main__":
     ep_robot = robot.Robot()

@@ -5,11 +5,7 @@ from robomaster import robot
 from robomaster import camera
 import tagmap
 import utils
-from heading_control import heading_control
-from vcontrol import world_velocity
-from tagmap import unit
 import tagmap
-from time import sleep
 import json
 
 at_detector = Detector(
@@ -21,8 +17,6 @@ at_detector = Detector(
     decode_sharpening=0.25,
     debug=0
 )
-
-tag_size = 0.16
 
 def find_pose_from_tag(K, detection):
     m_half_size = tag_size / 2
@@ -112,14 +106,6 @@ def pick_in_line_tag(prev_waypoint):
 
 
 if __name__ == "__main__":
-    """
-    Program flow:
-        startup -> assume roughly on starting point, facing towards 32
-        detect 32 and figure out exact location
-        calculate path
-        move along path?
-        ...
-    """
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
     ep_camera = ep_robot.camera
@@ -130,9 +116,7 @@ if __name__ == "__main__":
 
     K=np.array([[184.752 * 1.7, 0, 320], [0, 184.752 * 1.7, 180], [0, 0, 1]])
 
-    # path = utils.get_path('Map.csv')
     path = utils.get_path('Map_stayaway.csv')
-    curr_idx = 1
 
     found_32 = False
 
@@ -145,14 +129,13 @@ if __name__ == "__main__":
             results = at_detector.detect(gray, estimate_tag_pose=False)
 
             for res in results:
-                # If AprilTag in frame, only 1 result 
                 _pose = find_pose_from_tag(K, res)
                 _rot, jaco = cv2.Rodrigues(_pose[1], _pose[1])
 
                 pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
                 img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
                 cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
-                id = res.tag_id#.decode("utf-8")
+                id = res.tag_id
                 if id == 32:
                     found_32 = True
                     pose = _pose
@@ -172,6 +155,7 @@ if __name__ == "__main__":
     current_pos = to_world_coords(32, pose, rot)
 
     positions = []
+    curr_idx = 1
 
     while True:
         with open('positions.json', 'w') as f:
@@ -180,10 +164,6 @@ if __name__ == "__main__":
         positions.append(curr)
         prev_point = path[curr_idx - 1]
         next_point = path[curr_idx]
-        # in_line_tag = pick_in_line_tag(prev_point)
-        # closest_to_prev = get_closest_tag(prev_point)
-        # closest_tag_id = get_closest_tag(next_point)
-        # first_tag = None
         print('moving to next point')
 
         while np.linalg.norm(np.array(curr) - np.array(next_point)) > 0.2:
@@ -205,70 +185,7 @@ if __name__ == "__main__":
                         if not center_pose or abs(x) < abs(center_pose[0][0]):
                             center_tag, center_pose = tag, pose
 
-                # if len(results) == 1:
-                #     center_tag = results[0]
-                #     center_pose = find_pose_from_tag(K, center_tag)
-                # elif len(results) > 1:
-                #     # Start by trying to look at AprilTag closest to the waypoint
-                #     for tag in results:
-                #         if tag.tag_id == closest_tag_id:
-                #             pose = find_pose_from_tag(K, tag)
-                #             center_tag, center_pose = tag, pose
-                #     # If that AprilTag is not visible, then look at AprilTag closest to robot
-                #     if not center_tag:
-                #         tag_dists = {tag: get_distance_from_tag(curr, tag.tag_id) for tag in results}
-                #         min_dist = min(tag_dists.values())
-                #         for tag in tag_dists:
-                #             if tag_dists[tag] == min_dist:
-                #                 center_tag = tag
-                #         center_pose = find_pose_from_tag(K, center_tag)
-                
-                # center_tag, center_pose = None, None
-                # if len(results) == 1:
-                #     center_tag = results[0]
-                #     center_pose = find_pose_from_tag(K, center_tag)
-                # elif len(results) > 1:
-                #     # Look at first AprilTag seen from this waypoint
-                #     if first_tag:
-                #         for tag in results:
-                #             if tag.tag_id == first_tag:
-                #                 pose = find_pose_from_tag(K, tag)
-                #                 center_tag, center_pose = tag, pose
-                #     # If not visible, look at AprilTag closest to center of FoV
-                #     for tag in results:
-                #         pose = find_pose_from_tag(K, tag)
-                #         x = pose[0][0]
-                #         if not center_pose or abs(x) < abs(center_pose[0][0]):
-                #             center_tag, center_pose = tag, pose
-                    # # If not visible, look at AprilTag closest to previous waypoint
-                    # if not center_tag:
-                    #     for tag in results:
-                    #         if tag.tag_id == closest_to_prev:
-                    #             pose = find_pose_from_tag(K, tag)
-                    #             center_tag, center_pose = tag, pose
-                    # # Start by trying to look at AprilTag most in line with previous waypoint
-                    # for tag in results:
-                    #     if tag.tag_id == in_line_tag:
-                    #         pose = find_pose_from_tag(K, tag)
-                    #         center_tag, center_pose = tag, pose
-                    # # If that AprilTag is not visible, then look at AprilTag closest to next waypoint
-                    # if not center_tag:
-                    #     for tag in results:
-                    #         if tag.tag_id == closest_tag_id:
-                    #             pose = find_pose_from_tag(K, tag)
-                    #             center_tag, center_pose = tag, pose
-                    # # If that AprilTag is not visible, then look at AprilTag closest to robot
-                    # if not center_tag:
-                    #     tag_dists = {tag: get_distance_from_tag(curr, tag.tag_id) for tag in results}
-                    #     min_dist = min(tag_dists.values())
-                    #     for tag in tag_dists:
-                    #         if tag_dists[tag] == min_dist:
-                    #             center_tag = tag
-                    #     center_pose = find_pose_from_tag(K, center_tag)
-
                 if center_tag:
-                    # if not first_tag:
-                    #     first_tag = center_tag
                     center_rot, jaco = cv2.Rodrigues(center_pose[1], center_pose[1])
 
                     pts = center_tag.corners.reshape((-1, 1, 2)).astype(np.int32)
@@ -286,7 +203,6 @@ if __name__ == "__main__":
                     vw = np.array([x_velocity, y_velocity, z_velocity])
 
                     Rbc = np.array([[0, 0, -1], [1, 0, 0], [0, 1, 0]])
-                    # Rbc = np.array([[-1, 0, 0], [0, 0, -1], [0, 1, 0]])
                     if center_tag.tag_id in tagmap.tags_top:
                         Rwa = np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]])
                     elif center_tag.tag_id in tagmap.tags_left:
@@ -301,12 +217,6 @@ if __name__ == "__main__":
                     vb = 0.5 * Rbc @ Rcw @ vw
 
                     yaw = np.tan(center_pose[0][2] / center_pose[0][0])
-                    # if abs(yaw) > 0.5: # 30 degrees
-                    #     x_velocity = 0
-                    #     y_velocity = 0
-                    # else:
-                    #     x_velocity = vb[0]
-                    #     y_velocity = vb[1]
                     x_velocity = vb[0]
                     y_velocity = vb[1]
                     z_velocity = yaw
@@ -319,15 +229,11 @@ if __name__ == "__main__":
                     print(f'x_velocity: {x_velocity}')
                     print(f'y_velocity: {y_velocity}')
                     print(f'z_velocity: {z_velocity}')
-                    # ep_chassis.drive_speed(x=vb[0], y=vb[1], z=z_velocity, timeout=0.1)
                     ep_chassis.drive_speed(x=x_velocity, y=y_velocity, z=z_velocity, timeout=0.1)
-                    # ep_chassis.drive_speed(x=x_velocity, y=y_velocity, z=0, timeout=0.1)
 
                 else:
                     # Sees no tags, just rotate
                     ep_chassis.drive_speed(x=0, y=0, z=-25, timeout=0.1)
-                    # Sees no tags, continues previous velocity
-                    # ep_chassis.drive_speed(x=x_velocity, y=y_velocity, z=z_velocity, timeout=0.1)
 
                 cv2.imshow("img", img)
                 cv2.waitKey(10)

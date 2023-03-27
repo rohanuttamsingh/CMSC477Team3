@@ -10,7 +10,7 @@ if __name__ == '__main__':
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     images = []
     
-    for i in range(50):
+    for i in range(1):
         input("Press Enter . . .")
         print(i)
         print("taking photo")
@@ -19,4 +19,4 @@ if __name__ == '__main__':
     ep_camera.stop_video_stream()
     ep_robot.close()
     for i, img in enumerate(images):
-        cv2.imwrite(f'{i}.jpg', img)
+        cv2.imwrite(f'{8+i}.jpg', img)

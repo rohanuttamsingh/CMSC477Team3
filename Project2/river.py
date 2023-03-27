@@ -24,12 +24,11 @@ upper_blue = np.array([130,255,255])
 ##
 #  frame = `Mat` object type representing the current camera frame
 def angle_to_river(frame):
-    frame = cv.imread('3.jpg', cv.IMREAD_COLOR)
     # Convert BGR to HSV
     hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
     # Threshold the HSV image to get only blue colors
     mask = cv.inRange(hsv, lower_blue, upper_blue)
-    print("Started calculating...")
+    # print("Started calculating...")
     time_s = time.time()
     riverline = []
     x = []
@@ -38,39 +37,56 @@ def angle_to_river(frame):
         if len(nz[0]) > 0:
             x.append(i)
             riverline.append(-1 * np.average(nz))
-    print("Finished calculating...")
+    # print("Finished calculating...")
     time_e = time.time()
-    print(f"Calculation took {time_e - time_s} s")
+    # print(f"Calculation took {time_e - time_s} s")
 
-    coefs = np.polyfit(x, riverline, 1)
-    m, b = coefs[0], coefs[1]
-    linreg = np.poly1d(coefs)
-    print(f"m={m}, b={b}")
-    ang_disp = np.degrees(np.arctan(m))
-    print(f"Angle of line = {ang_disp}")
-    print(f"Range = [{x[0]}, {x[-1]}]")
+    if len(riverline) > 0:
+        coefs = np.polyfit(x, riverline, 1)
+        m, b = coefs[0], coefs[1]
+        linreg = np.poly1d(coefs)
+        # print(f"m={m}, b={b}")
+        ang_disp = np.degrees(np.arctan(m))
+        # print(f"Angle of line = {ang_disp}")
+        # print(f"Range = [{x[0]}, {x[-1]}]")
 
-    """
-    If ang_disp < 0, robot should turn right
-    If ang_disp > 0, robot should turn left
+        """
+        If ang_disp < 0, robot should turn right
+        If ang_disp > 0, robot should turn left
 
-    ==>
+        ==>
 
-    continuously take camera frames while rotating, and
-    stop once the ang_disp falls within tolerance?
+        continuously take camera frames while rotating, and
+        stop once the ang_disp falls within tolerance?
 
-    """
+        """
 
-    plt.xlim(0, mask.shape[1])
-    plt.ylim(-1 * mask.shape[0], 0)
-    plt.plot(x, riverline)
-    plt.plot(x, linreg(x))
-    plt.show()
-    
-    return ang_disp
+        # plt.xlim(0, mask.shape[1])
+        # plt.ylim(-1 * mask.shape[0], 0)
+        # plt.plot(x, riverline)
+        # plt.plot(x, linreg(x))
+        # plt.show()
+        retval = {
+            "ang_disp": ang_disp,
+            "x": x,
+            "riverline": riverline,
+            "linreg": linreg(x),
+            "xlim": mask.shape[1],
+            "ylim": -1 * mask.shape[0],
+            "mask": mask
+        }
+        return retval
+    else:
+        return None
 
 
 if __name__ == "__main__":
+    # for i in range(10):
+    #     frame = cv.imread(f"river_imgs/{i}.jpg", cv.IMREAD_COLOR)
+    #     print(angle_to_river(frame))
+    angle_to_river(cv.imread('river_imgs/9.jpg', cv.IMREAD_COLOR))
+
+def oldmain():
     #cap = cv.VideoCapture(0)
     while(1):
         # Take each frame

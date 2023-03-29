@@ -3,8 +3,14 @@ from robomaster import robot
 from robomaster import camera
 import matplotlib.pyplot as plt
 
+"""
+unrelated to this file, but potentially good resource for finding the landing site:
+https://pyimagesearch.com/2016/02/08/opencv-shape-detection/
+"""
+
 if __name__ == "__main__":
-    # doesn't move yet, but graphs the mask and linear regression
+    # example that graphs the mask and linear regression side by side
+    # in real time with the camera stream
     plt.figure()
     plt.ion()
     plt.show()
@@ -18,7 +24,7 @@ if __name__ == "__main__":
             img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
             retval = angle_to_river(img)
             ang_disp = retval["ang_disp"]
-            print(ang_disp if ang_disp is not None else "no river detected")  # is never None due to noise!!!!
+            print(ang_disp if ang_disp is not None else "no river detected")  # usually never None, due to noise
             plt.clf()
             plt.subplot(1, 2, 1)
             plt.xlim(0, retval["xlim"])

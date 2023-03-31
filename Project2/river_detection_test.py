@@ -2,10 +2,14 @@ from river import angle_to_river
 from robomaster import robot
 from robomaster import camera
 import matplotlib.pyplot as plt
+import numpy as np
+import sns
 
 """
 unrelated to this file, but potentially good resource for finding the landing site:
 https://pyimagesearch.com/2016/02/08/opencv-shape-detection/
+
+python "Desktop/CMSC477 Workspace/CMSC477Team3/Project2/river_detection_test.py"
 """
 
 if __name__ == "__main__":
@@ -15,7 +19,7 @@ if __name__ == "__main__":
     plt.ion()
     plt.show()
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="ap")
+    ep_robot.initialize(conn_type="sta", sn = sns.ROBOT6_SN)#(conn_type="ap")
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=True, resolution=camera.STREAM_360P)
     ep_chassis = ep_robot.chassis
@@ -24,7 +28,9 @@ if __name__ == "__main__":
             img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
             retval = angle_to_river(img)
             ang_disp = retval["ang_disp"]
-            print(ang_disp if ang_disp is not None else "no river detected")  # usually never None, due to noise
+            #print(ang_disp if ang_disp is not None else "no river detected")  # usually never None, due to noise
+            river_y_prop = np.median(retval["riverline"]) / retval["ylim"]
+            print(f"river y = {river_y_prop}")
             plt.clf()
             plt.subplot(1, 2, 1)
             plt.xlim(0, retval["xlim"])

@@ -48,6 +48,29 @@ https://pyimagesearch.com/2016/02/08/opencv-shape-detection/
 python "Desktop/CMSC477 Workspace/CMSC477Team3/Project2/cone_detection.py"
 """
 
+def detect_dropoff(img):
+    retval = find_orange(img)
+    print("Evaluating mask for shapes...")
+    cnts = cv2.findContours(retval["mask"].copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    cnts = imutils.grab_contours(cnts)
+    sd = ShapeDetector()
+    shapes = []
+    for c in cnts:
+        # compute the center of the contour, then detect the name of the
+        # shape using only the contour
+        M = cv2.moments(c)
+        if M["m00"] <= 150:
+            continue
+        cX = int((M["m10"] / M["m00"]))# * ratio)
+        cY = int((M["m01"] / M["m00"]))# * ratio)
+        shape = sd.detect(c)
+        print(f"Found a {shape['name']} w/ area {M['m00']} at ({cX, cY})")
+        heapq.heappush(shapes, (-1 * shape['s'], M['m00'], cX, cY))
+    if len(shapes) > 0:
+        if -shapes[0][0] >= 4: # At least 4 sides
+            return shapes[0][2], shapes[0][3]
+    return None
+
 if __name__ == "__main__":
     # example that graphs the mask and linear regression side by side
     # in real time with the camera stream

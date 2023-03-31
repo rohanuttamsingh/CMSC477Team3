@@ -7,6 +7,7 @@ from roboflow import Roboflow
 import sns
 import utils
 from river import angle_to_river
+from cone_detection import detect_dropoff
 
 goal_x = utils.image_width // 2
 goal_y = 240
@@ -25,11 +26,15 @@ if __name__ == '__main__':
     model = project.version(4).model
 
     i = 0
-    found_robot = False
-    centered_with_robot = False
-    in_front_of_river = False
-    gripping_lego = False
-    found_river = False
+    # found_robot = False
+    # centered_with_robot = False
+    # in_front_of_river = False
+    # gripping_lego = False
+    found_robot = True
+    centered_with_robot = True
+    in_front_of_river = True
+    gripping_lego = True
+    found_dropoff = False
 
     # time.sleep(30)
     while True:
@@ -95,6 +100,20 @@ if __name__ == '__main__':
                     ep_gripper.pause()
                     gripping_lego = True
                     time.sleep(30)
+                
+                elif not found_dropoff:
+                    ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
+                    found_dropoff = True
+
+                else:
+                    dropoff_coords = detect_dropoff(image)
+                    if dropoff_coords is not None:
+                        dropoff_x, dropoff_y = dropoff_coords
+                        x_speed = (goal_y - dropoff_y) / 300
+                        z_speed = (dropoff_x - goal_x) / 10
+                        ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed)
+                    else:
+                        ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
 
 
                 print(f'found_robot: {found_robot}')

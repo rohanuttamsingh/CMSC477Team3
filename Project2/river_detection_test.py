@@ -19,9 +19,9 @@ if __name__ == "__main__":
     plt.ion()
     plt.show()
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta", sn = sns.ROBOT6_SN)#(conn_type="ap")
+    ep_robot.initialize(conn_type="sta", sn = sns.ROBOT5_SN)#(conn_type="ap")
     ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=True, resolution=camera.STREAM_360P)
+    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     ep_chassis = ep_robot.chassis
     while True:
         try:
@@ -31,7 +31,7 @@ if __name__ == "__main__":
             #print(ang_disp if ang_disp is not None else "no river detected")  # usually never None, due to noise
             river_y_prop = np.median(retval["riverline"]) / retval["ylim"]
             print(f"river y = {river_y_prop}")
-            river_adj = retval["riverline"] / retval["ylim"]
+            river_adj = np.array(retval["riverline"]) / retval["ylim"]
             river_adj = river_adj[river_adj >= 0.2]
             print(f"filtered riverline array length = {len(river_adj)}")
             plt.clf()

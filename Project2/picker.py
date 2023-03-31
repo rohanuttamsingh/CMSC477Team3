@@ -1,10 +1,12 @@
 import time
 import cv2
+import numpy as np
 from robomaster import robot
 from robomaster import camera
 from roboflow import Roboflow
 import sns
 import utils
+from river import angle_to_river
 
 goal_x = utils.image_width // 2
 goal_y = 285
@@ -28,6 +30,8 @@ if __name__ == '__main__':
     in_front_of_lego = False
     gripping_lego = False
     found_river = False
+    angled = True
+    at_river = False
     while True:
         try:
             image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
@@ -48,24 +52,64 @@ if __name__ == '__main__':
 
                 # Move forward to lego
                 elif not in_front_of_lego:
-                    _, lego_y = utils.get_lego_coords(predictions)
+                    lego_x, lego_y = utils.get_lego_coords(predictions)
                     in_front_of_lego = goal_y - utils.threshold <= lego_y <= goal_y + utils.threshold
                     x_speed = (goal_y - lego_y) / 200
-                    ep_chassis.drive_speed(x=x_speed, y=0, z=0, timeout=0.1)
+                    z_speed = (lego_x - goal_x) / 10
+                    ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
 
                 # Squeeze the gripper
                 elif not gripping_lego:
                     ep_gripper.close(power=50)
-                    time.sleep(2)
+                    time.sleep(2.5)
                     ep_gripper.pause()
                     ep_arm.move(x=0, y=60).wait_for_completed()
                     gripping_lego = True
+                
+                elif angled:
+                    retval = angle_to_river(image)
+                    if retval is not None:
+                        river_adj = np.array(retval['riverline']) / retval['ylim']
+                        river_adj = river_adj[river_adj >= 0.2]
+                        if len(river_adj) >= 100:
+                            ang_disp = retval["ang_disp"]
+                            if ang_disp > 3:
+                                print(f"ang_disp = {ang_disp} ==> turn to left")
+                                ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.1)
+                            elif ang_disp < -3:
+                                print(f"ang_disp = {ang_disp} ==> turn to right")
+                                ep_chassis.drive_speed(x=0, y=0, z=20, timeout=0.1)
+                            else:
+                                river_y_avg = np.average(retval["riverline"])
+                                river_y_med = np.median(retval["riverline"])
+                                print(f"ang_disp = {ang_disp} ==> do not turn; riverline at {river_y_avg} (avg) or {river_y_med} (median) out of {retval['ylim']}")
+                                angled = False
+                        else:
+                            print("ang_disp = None ==> no river detected!")
+                            ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+                    else:
+                        print("ang_disp = None ==> no river detected!")
+                        ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+
+                elif not at_river:
+                    retval = angle_to_river(image)
+                    river_y_prop = np.median(retval["riverline"]) / retval["ylim"]
+                    print(f"river y = {river_y_prop}")
+                    if river_y_prop < 0.935:  # pretty arbitrary cutoff for now - adjust as needed
+                        ep_chassis.drive_speed(x=0.2, y=0, z=0, timeout=0.1)
+                    # elif river_y_prop > 0.94:
+                    #     ep_chassis.drive_speed(x=-0.05, y=0, z=0, timeout=0.1)
+                    else:
+                        ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+                        at_river = True
 
 
                 print(f'found_lego: {found_lego}')
                 print(f'centered_with_lego: {centered_with_lego}')
                 print(f'in_front_of_lego: {in_front_of_lego}')
                 print(f'gripping_lego: {gripping_lego}')
+                print(f'angled: {angled}')
+                print(f'at_river: {at_river}')
             i = (i + 1) % utils.detect_every_n_frames
 
             cv2.imshow('image', image)

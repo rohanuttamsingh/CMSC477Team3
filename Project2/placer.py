@@ -1,10 +1,12 @@
 import time
 import cv2
+import numpy as np
 from robomaster import robot
 from robomaster import camera
 from roboflow import Roboflow
 import sns
 import utils
+from river import angle_to_river
 
 goal_x = utils.image_width // 2
 goal_y = 240
@@ -24,7 +26,8 @@ if __name__ == '__main__':
 
     i = 0
     found_robot = False
-    in_line = False
+    centered_with_robot = False
+    in_front_of_river = False
     gripping_lego = False
     found_river = False
     while True:
@@ -33,43 +36,63 @@ if __name__ == '__main__':
             if i == 0:
                 predictions = utils.detect(model, image)
 
-                # Spin to find robot
+                # Spin to find lego
                 if not found_robot:
                     found_robot = utils.can_see_robot(predictions)
                     ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
 
-                # Proportional controller to align robot parallel with river and in line with other robot
+                # Proportional controller to align robot parallel to river and in line with other robot
                 elif not centered_with_robot:
-                    river_angle = None # TODO
-                    coords = utils.get_robot_coords(predictions)
-                    if coords is not None:
-                        robot_x, _ = coords
-                        centered_with_robot = (goal_x - utils.threshold <= robot_x <= goal_x + utils.threshold)
-                        y_speed = (robot_x - goal_x) / 200
-                        z_speed = -river_angle * 3
-                        ep_chassis.drive_speed(x=0, y=y_speed, z=z_speed, timeout=0.5)
+                    retval = angle_to_river(image)
+                    y_speed = 0
+                    z_speed = 0
+                    if retval is not None:
+                        river_adj = np.array(retval['riverline']) / retval['ylim']
+                        river_adj = river_adj[river_adj >= 0.2]
+                        if len(river_adj) >= 100:
+                            ang_disp = retval["ang_disp"]
+                            if ang_disp > 3:
+                                print(f"ang_disp = {ang_disp} ==> turn to left")
+                                z_speed = -20
+                            elif ang_disp < -3:
+                                print(f"ang_disp = {ang_disp} ==> turn to right")
+                                z_speed = 20
+                            coords = utils.get_robot_coords(predictions)
+                            if coords is not None:
+                                robot_x, _ = coords
+                                centered_with_robot = (goal_x - utils.threshold <= robot_x <= goal_x + utils.threshold)
+                                y_speed = (robot_x - goal_x) / 200
+                    ep_chassis.drive_speed(x=0, y=y_speed, z=z_speed, timeout=0.5)
 
-                # Move forward to robot
-                elif not in_front_of_robot:
-                    coords = utils.get_robot_coords(predictions)
-                    if coords is not None:
-                        _, robot_y = coords
-                        print(robot_y)
-                        in_front_of_robot = goal_y - utils.threshold <= robot_y <= goal_y + utils.threshold
-                        x_speed = (goal_y - robot_y) / 200
-                        ep_chassis.drive_speed(x=x_speed, y=0, z=0, timeout=0.1)
+                # Move forward to lego
+                # elif not in_front_of_robot:
+                #     coords = utils.get_robot_coords(predictions)
+                #     if coords is not None:
+                #         _, robot_y = coords
+                #         print(robot_y)
+                #         in_front_of_robot = goal_y - utils.threshold <= robot_y <= goal_y + utils.threshold
+                #         x_speed = (goal_y - robot_y) / 200
+                #         ep_chassis.drive_speed(x=x_speed, y=0, z=0, timeout=0.1)
+                elif not in_front_of_river:
+                    retval = angle_to_river(image)
+                    river_y_prop = np.median(retval["riverline"]) / retval["ylim"]
+                    print(f"river y = {river_y_prop}")
+                    if river_y_prop < 0.835:  # pretty arbitrary cutoff for now - adjust as needed
+                        ep_chassis.drive_speed(x=0.2, y=0, z=0, timeout=0.1)
+                    else:
+                        in_front_of_river = True
 
                 # Squeeze the gripper
                 elif not gripping_lego:
                     ep_gripper.close(power=50)
                     time.sleep(2)
                     ep_gripper.pause()
-                    gripping_robot = True
+                    gripping_lego = True
 
 
                 print(f'found_robot: {found_robot}')
                 print(f'centered_with_robot: {centered_with_robot}')
-                print(f'in_front_of_robot: {in_front_of_robot}')
+                print(f'in_front_of_river: {in_front_of_river}')
                 print(f'gripping_lego: {gripping_lego}')
             i = (i + 1) % utils.detect_every_n_frames
 

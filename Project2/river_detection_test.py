@@ -31,6 +31,9 @@ if __name__ == "__main__":
             #print(ang_disp if ang_disp is not None else "no river detected")  # usually never None, due to noise
             river_y_prop = np.median(retval["riverline"]) / retval["ylim"]
             print(f"river y = {river_y_prop}")
+            river_adj = retval["riverline"] / retval["ylim"]
+            river_adj = river_adj[river_adj >= 0.2]
+            print(f"filtered riverline array length = {len(river_adj)}")
             plt.clf()
             plt.subplot(1, 2, 1)
             plt.xlim(0, retval["xlim"])

@@ -69,9 +69,8 @@ if __name__ == '__main__':
                 elif angled:
                     retval = angle_to_river(image)
                     if retval is not None:
-                        river_adj = np.array(retval['riverline']) / retval['ylim']
-                        river_adj = river_adj[river_adj >= 0.2]
-                        if len(river_adj) >= 100:
+                        riverline = retval['riverline']
+                        if len(riverline) >= 100:
                             ang_disp = retval["ang_disp"]
                             if ang_disp > 3:
                                 print(f"ang_disp = {ang_disp} ==> turn to left")
@@ -80,8 +79,8 @@ if __name__ == '__main__':
                                 print(f"ang_disp = {ang_disp} ==> turn to right")
                                 ep_chassis.drive_speed(x=0, y=0, z=20, timeout=0.1)
                             else:
-                                river_y_avg = np.average(retval["riverline"])
-                                river_y_med = np.median(retval["riverline"])
+                                river_y_avg = np.average(riverline)
+                                river_y_med = np.median(riverline)
                                 print(f"ang_disp = {ang_disp} ==> do not turn; riverline at {river_y_avg} (avg) or {river_y_med} (median) out of {retval['ylim']}")
                                 angled = False
                         else:
@@ -103,6 +102,12 @@ if __name__ == '__main__':
                         ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
                         at_river = True
 
+                else:
+                    time.sleep(30)
+                    ep_gripper.open(power=50)
+                    time.sleep(2.5)
+                    ep_gripper.pause()
+                    ep_arm.move(x=0, y=-60).wait_for_completed()
 
                 print(f'found_lego: {found_lego}')
                 print(f'centered_with_lego: {centered_with_lego}')

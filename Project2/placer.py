@@ -30,6 +30,8 @@ if __name__ == '__main__':
     in_front_of_river = False
     gripping_lego = False
     found_river = False
+
+    # time.sleep(30)
     while True:
         try:
             image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
@@ -47,9 +49,8 @@ if __name__ == '__main__':
                     y_speed = 0
                     z_speed = 0
                     if retval is not None:
-                        river_adj = np.array(retval['riverline']) / retval['ylim']
-                        river_adj = river_adj[river_adj >= 0.2]
-                        if len(river_adj) >= 100:
+                        riverline = retval['riverline']
+                        if len(riverline) >= 100:
                             ang_disp = retval["ang_disp"]
                             if ang_disp > 3:
                                 print(f"ang_disp = {ang_disp} ==> turn to left")
@@ -61,7 +62,7 @@ if __name__ == '__main__':
                             if coords is not None:
                                 robot_x, _ = coords
                                 centered_with_robot = (goal_x - utils.threshold <= robot_x <= goal_x + utils.threshold)
-                                y_speed = (robot_x - goal_x) / 200
+                                y_speed = (robot_x - goal_x) / 300
                     ep_chassis.drive_speed(x=0, y=y_speed, z=z_speed, timeout=0.5)
 
                 # Move forward to lego
@@ -77,17 +78,23 @@ if __name__ == '__main__':
                     retval = angle_to_river(image)
                     river_y_prop = np.median(retval["riverline"]) / retval["ylim"]
                     print(f"river y = {river_y_prop}")
+                    z_speed = 0
+                    lego_coords = utils.get_lego_coords(predictions)
+                    if lego_coords is not None:
+                        lego_x, _ = utils.get_lego_coords(predictions)
+                        z_speed = (lego_x - goal_x) / 10
                     if river_y_prop < 0.835:  # pretty arbitrary cutoff for now - adjust as needed
-                        ep_chassis.drive_speed(x=0.2, y=0, z=0, timeout=0.1)
+                        ep_chassis.drive_speed(x=0.2, y=0, z=z_speed, timeout=0.1)
                     else:
                         in_front_of_river = True
 
                 # Squeeze the gripper
                 elif not gripping_lego:
                     ep_gripper.close(power=50)
-                    time.sleep(2)
+                    time.sleep(2.5)
                     ep_gripper.pause()
                     gripping_lego = True
+                    time.sleep(30)
 
 
                 print(f'found_robot: {found_robot}')

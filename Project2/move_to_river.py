@@ -29,9 +29,11 @@ if __name__ == "__main__":
         try:
             img = ep_camera.read_cv2_image(strategy="newest", timeout=0.5)
             retval = angle_to_river(img)
+            river_adj = np.array(retval["riverline"]) / retval["ylim"]
+            river_adj = river_adj[river_adj >= 0.2]
             if angled:
                 ang_disp = retval["ang_disp"]
-                if ang_disp is not None:
+                if retval is not None:
                     if ang_disp > 3:
                         print(f"ang_disp = {ang_disp} ==> turn to left")
                         ep_chassis.drive_speed(x=0, y=0, z=-3, timeout=0.1)

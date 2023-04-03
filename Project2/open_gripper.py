@@ -10,10 +10,10 @@ if __name__ == '__main__':
     ep_arm = ep_robot.robotic_arm
 
     # open gripper
-    ep_gripper.open(power=50)
+    # ep_gripper.open(power=50)
     # ep_gripper.close(power=50)
-    time.sleep(2.5)
-    ep_gripper.pause()
+    # time.sleep(1)
+    # ep_gripper.pause()
 
     ep_arm.move(x=0, y=-60).wait_for_completed()
 

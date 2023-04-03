@@ -65,7 +65,7 @@ if __name__ == '__main__':
                 # Squeeze the gripper
                 elif not gripping_lego:
                     ep_gripper.close(power=50)
-                    time.sleep(2.5)
+                    time.sleep(3)
                     ep_gripper.pause()
                     ep_arm.move(x=0, y=60).wait_for_completed()
                     gripping_lego = True
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                     data = 'atriver'
                     UDPSock.sendto(data.encode(), addr) 
                     UDPSock.close() 
-                    sent = True
+                    sent_at_river = True
                 
                 elif not placer_gripping_lego:
                     host = ''
@@ -137,6 +137,7 @@ if __name__ == '__main__':
                     ep_gripper.pause()
                     # ep_arm.move(x=0, y=-60).wait_for_completed()
                     ep_chassis.move(x=-0.1, y=0, z=0).wait_for_completed()
+                    break
 
                 print(f'found_lego: {found_lego}')
                 print(f'centered_with_lego: {centered_with_lego}')

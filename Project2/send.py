@@ -22,7 +22,7 @@ def send2():
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
     while True: 
         data = input("Enter message to send or type 'exit': ") 
-        UDPSock.sendto(data, addr) 
+        UDPSock.sendto(data.encode(), addr) 
         if data == "exit": 
             break 
     UDPSock.close() 
@@ -30,7 +30,7 @@ def send2():
 
 
 if __name__ == '__main__':
-    send()
-    #send2()
+    # send()
+    send2()
 
 

@@ -26,15 +26,15 @@ def get2():
    print ("Waiting to receive messages...")
    while True: 
       (data, addr) = UDPSock.recvfrom(buf) 
-      print ("Received message: " + data )
+      print ("Received message: " + data.decode() )
       if data == "exit": 
          break 
    UDPSock.close() 
    os._exit(0) 
 
 if __name__ == '__main__':
-    get()
-    #get2()
+    # get()
+    get2()
 
 
 

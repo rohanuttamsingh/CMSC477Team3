@@ -63,6 +63,8 @@ def detect_dropoff(img):
             continue
         cX = int((M["m10"] / M["m00"]))# * ratio)
         cY = int((M["m01"] / M["m00"]))# * ratio)
+        if cY >= 275:
+            continue
         shape = sd.detect(c)
         print(f"Found a {shape['name']} w/ area {M['m00']} at ({cX, cY})")
         heapq.heappush(shapes, (-1 * shape['s'], M['m00'], cX, cY))
@@ -95,10 +97,12 @@ if __name__ == "__main__":
                 # compute the center of the contour, then detect the name of the
                 # shape using only the contour
                 M = cv2.moments(c)
-                if M["m00"] <= 150:
+                if M["m00"] <= 200:
                     continue
                 cX = int((M["m10"] / M["m00"]))# * ratio)
                 cY = int((M["m01"] / M["m00"]))# * ratio)
+                if cY >= 275:
+                    continue
                 shape = sd.detect(c)
                 print(f"Found a {shape['name']} w/ area {M['m00']} at ({cX, cY})")
                 heapq.heappush(shapes, (-1 * shape['s'], M['m00'], cX, cY))

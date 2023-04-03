@@ -35,6 +35,7 @@ if __name__ == '__main__':
     in_front_of_river = True
     gripping_lego = True
     found_dropoff = False
+    at_dropoff = False
 
     # time.sleep(30)
     while True:
@@ -57,10 +58,10 @@ if __name__ == '__main__':
                         riverline = retval['riverline']
                         if len(riverline) >= 100:
                             ang_disp = retval["ang_disp"]
-                            if ang_disp > 3:
+                            if ang_disp > 2:
                                 print(f"ang_disp = {ang_disp} ==> turn to left")
                                 z_speed = -20
-                            elif ang_disp < -3:
+                            elif ang_disp < -2:
                                 print(f"ang_disp = {ang_disp} ==> turn to right")
                                 z_speed = 20
                             coords = utils.get_robot_coords(predictions)
@@ -105,21 +106,30 @@ if __name__ == '__main__':
                     ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
                     found_dropoff = True
 
-                else:
+                elif not at_dropoff:
                     dropoff_coords = detect_dropoff(image)
                     if dropoff_coords is not None:
                         dropoff_x, dropoff_y = dropoff_coords
+                        print(dropoff_y)
+                        at_dropoff = dropoff_y - utils.threshold <= goal_y <= dropoff_y + utils.threshold
                         x_speed = (goal_y - dropoff_y) / 300
                         z_speed = (dropoff_x - goal_x) / 10
-                        ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed)
+                        ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
                     else:
                         ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+
+                else:
+                    ep_gripper.open(power=50)
+                    time.sleep(2.5)
+                    ep_gripper.pause()
 
 
                 print(f'found_robot: {found_robot}')
                 print(f'centered_with_robot: {centered_with_robot}')
                 print(f'in_front_of_river: {in_front_of_river}')
                 print(f'gripping_lego: {gripping_lego}')
+                print(f'found_dropoff: {found_dropoff}')
+                print(f'at_dropoff: {at_dropoff}')
             i = (i + 1) % utils.detect_every_n_frames
 
             cv2.imshow('image', image)

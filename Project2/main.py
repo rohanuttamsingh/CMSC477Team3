@@ -72,10 +72,10 @@ if __name__ == '__main__':
                         riverline = retval['riverline']
                         if len(riverline) >= 100:
                             ang_disp = retval["ang_disp"]
-                            if ang_disp > 2:
+                            if ang_disp > 3:
                                 print(f"ang_disp = {ang_disp} ==> turn to left")
                                 ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.1)
-                            elif ang_disp < -2:
+                            elif ang_disp < -3:
                                 print(f"ang_disp = {ang_disp} ==> turn to right")
                                 ep_chassis.drive_speed(x=0, y=0, z=20, timeout=0.1)
                             else:

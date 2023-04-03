@@ -26,14 +26,10 @@ if __name__ == '__main__':
     model = project.version(4).model
 
     i = 0
-    # found_robot = False
-    # centered_with_robot = False
-    # in_front_of_river = False
-    # gripping_lego = False
-    found_robot = True
-    centered_with_robot = True
-    in_front_of_river = True
-    gripping_lego = True
+    found_robot = False
+    centered_with_robot = False
+    in_front_of_river = False
+    gripping_lego = False
     found_dropoff = False
     at_dropoff = False
 

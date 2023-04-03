@@ -1,6 +1,7 @@
 import time
 import cv2
 import numpy as np
+from socket import *
 from robomaster import robot
 from robomaster import camera
 from roboflow import Roboflow
@@ -32,6 +33,9 @@ if __name__ == '__main__':
     found_river = False
     angled = True
     at_river = False
+    sent_at_river = False
+    placer_gripping_lego = False
+
     while True:
         try:
             image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
@@ -102,12 +106,36 @@ if __name__ == '__main__':
                         ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
                         at_river = True
 
+                elif not sent_at_river:
+                    host = "192.168.56.1" # set to IP address of target computer 
+                    port = 13000 
+                    addr = (host, port) 
+                    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+                    data = 'atriver'
+                    UDPSock.sendto(data.encode(), addr) 
+                    UDPSock.close() 
+                    sent = True
+                
+                host = ''
+                port = 13000 
+                buf = 1024 
+                addr = (host, port) 
+                UDPSock = socket(AF_INET, SOCK_DGRAM) 
+                UDPSock.bind(addr) 
+                print ("Waiting to receive messages...")
+                while not placer_gripping_lego: 
+                    (data, addr) = UDPSock.recvfrom(buf) 
+                    print ("Received message: " + data.decode() )
+                    if data == "gripping_lego": 
+                        placer_gripping_lego = True
+                        UDPSock.close() 
+
                 else:
-                    time.sleep(30)
                     ep_gripper.open(power=50)
                     time.sleep(2.5)
                     ep_gripper.pause()
                     ep_arm.move(x=0, y=-60).wait_for_completed()
+                    ep_chassis.move(x=-0.1, y=0, z=0).wait_for_completed()
 
                 print(f'found_lego: {found_lego}')
                 print(f'centered_with_lego: {centered_with_lego}')

@@ -1,6 +1,7 @@
 import time
 import cv2
 import numpy as np
+from socket import *
 from robomaster import robot
 from robomaster import camera
 from roboflow import Roboflow
@@ -25,6 +26,22 @@ if __name__ == '__main__':
     project = rf.workspace().project('project2-l7rdy')
     model = project.version(4).model
 
+    picker_at_river = False
+
+    host = ''
+    port = 13000 
+    buf = 1024 
+    addr = (host, port) 
+    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+    UDPSock.bind(addr) 
+    print ("Waiting to receive messages...")
+    while not picker_at_river: 
+        (data, addr) = UDPSock.recvfrom(buf) 
+        print ("Received message: " + data.decode() )
+        if data == "atriver": 
+            picker_at_river = True
+            UDPSock.close() 
+
     i = 0
     found_robot = False
     centered_with_robot = False
@@ -33,7 +50,6 @@ if __name__ == '__main__':
     found_dropoff = False
     at_dropoff = False
 
-    # time.sleep(30)
     while True:
         try:
             image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
@@ -96,7 +112,15 @@ if __name__ == '__main__':
                     time.sleep(2.5)
                     ep_gripper.pause()
                     gripping_lego = True
-                    time.sleep(30)
+                    host = "192.168.50.148" # set to IP address of target computer 
+                    port = 13000 
+                    addr = (host, port) 
+                    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+                    data = 'gripping_lego'
+                    UDPSock.sendto(data.encode(), addr) 
+                    UDPSock.close() 
+                    sent = True
+                    time.sleep(10)
                 
                 elif not found_dropoff:
                     ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()

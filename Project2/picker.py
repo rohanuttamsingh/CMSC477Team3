@@ -116,25 +116,26 @@ if __name__ == '__main__':
                     UDPSock.close() 
                     sent = True
                 
-                host = ''
-                port = 13000 
-                buf = 1024 
-                addr = (host, port) 
-                UDPSock = socket(AF_INET, SOCK_DGRAM) 
-                UDPSock.bind(addr) 
-                print ("Waiting to receive messages...")
-                while not placer_gripping_lego: 
-                    (data, addr) = UDPSock.recvfrom(buf) 
-                    print ("Received message: " + data.decode() )
-                    if data == "gripping_lego": 
-                        placer_gripping_lego = True
-                        UDPSock.close() 
+                elif not placer_gripping_lego:
+                    host = ''
+                    port = 13000 
+                    buf = 1024 
+                    addr = (host, port) 
+                    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+                    UDPSock.bind(addr) 
+                    print ("Waiting to receive messages...")
+                    while not placer_gripping_lego: 
+                        (data, addr) = UDPSock.recvfrom(buf) 
+                        print ("Received message: " + data.decode() )
+                        if data == "gripping_lego": 
+                            placer_gripping_lego = True
+                            UDPSock.close() 
 
                 else:
                     ep_gripper.open(power=50)
                     time.sleep(2.5)
                     ep_gripper.pause()
-                    ep_arm.move(x=0, y=-60).wait_for_completed()
+                    # ep_arm.move(x=0, y=-60).wait_for_completed()
                     ep_chassis.move(x=-0.1, y=0, z=0).wait_for_completed()
 
                 print(f'found_lego: {found_lego}')

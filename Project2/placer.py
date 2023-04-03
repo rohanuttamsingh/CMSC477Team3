@@ -38,7 +38,7 @@ if __name__ == '__main__':
     while not picker_at_river: 
         (data, addr) = UDPSock.recvfrom(buf) 
         print ("Received message: " + data.decode() )
-        if data == "atriver": 
+        if data.decode() == "atriver": 
             picker_at_river = True
             UDPSock.close() 
 

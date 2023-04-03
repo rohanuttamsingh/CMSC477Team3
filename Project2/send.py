@@ -16,7 +16,7 @@ def send():
 
 
 def send2():
-    host = "192.168.50.148" # set to IP address of target computer 
+    host = "192.168.50.4" # set to IP address of target computer 
     port = 13000 
     addr = (host, port) 
     UDPSock = socket(AF_INET, SOCK_DGRAM) 

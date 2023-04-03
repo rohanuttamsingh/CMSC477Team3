@@ -107,7 +107,7 @@ if __name__ == '__main__':
                         at_river = True
 
                 elif not sent_at_river:
-                    host = "192.168.56.1" # set to IP address of target computer 
+                    host = "192.168.50.4" # set to IP address of target computer 
                     port = 13000 
                     addr = (host, port) 
                     UDPSock = socket(AF_INET, SOCK_DGRAM) 
@@ -127,7 +127,7 @@ if __name__ == '__main__':
                     while not placer_gripping_lego: 
                         (data, addr) = UDPSock.recvfrom(buf) 
                         print ("Received message: " + data.decode() )
-                        if data == "gripping_lego": 
+                        if data.decode() == "gripping_lego": 
                             placer_gripping_lego = True
                             UDPSock.close() 
 

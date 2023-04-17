@@ -7,9 +7,12 @@ def create_graph(path):
     wall = 1
     map_ = load_map(path)
     graph = {}
+    goal = 2
     for row in range(map_.shape[0]):
         for col in range(map_.shape[1]):
             if map_[row, col] != wall:
+                if map_[row, col] == goal:
+                    goal_position = (row, col)
                 neighbors = []
                 dirs = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
                 for row_diff, col_diff in dirs:
@@ -18,12 +21,10 @@ def create_graph(path):
                         if map_[new_row, new_col] != wall:
                             neighbors.append((new_row, new_col))
                 graph[(row, col)] = neighbors
-    return graph
+    return graph, goal_position
 
-def bfs_reverse(graph):
+def bfs_reverse(graph, goal_position):
     """BFS from goal location to every other node."""
-    goal = 2
-    goal_position = np.where(graph == goal)
     goal_position = (goal_position[0], goal_position[1])
     visited = set()
     pr = {}
@@ -52,3 +53,24 @@ def pr_to_path(start, pr):
             break
     path.append(curr)
     return path
+
+def scale_path(path):
+    """Given a path, scales the points to feet scale. Assumes that the starting
+    point is at (0, 0)."""
+    unit = 0.5 # 0.5 feet
+    start_x, start_y = path[0]
+    zero_start_path = [(x - start_x, y - start_y) for x, y in path]
+    scaled_path = [(x * unit, y * unit) for x, y in zero_start_path]
+    return scaled_path
+
+def m_to_feet(position):
+    """Given an (x, y) tuple in meters, returns it in feet. Useful for
+    converting wheel odometry to our map scale."""
+    scale = 3.28084
+    return (position[0] * scale, position[1] * scale)
+
+def velocity(position, next_point):
+    """Given robot current position and next point in path, uses a proportional
+    controller to determine the x and y velocity of the robot."""
+    K = 1.5
+    return (K * (next_point[0] - position[0]), K * (next_point[1] - position[1]))

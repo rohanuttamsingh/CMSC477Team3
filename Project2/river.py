@@ -56,6 +56,13 @@ def angle_to_river(frame):
     time_e = time.time()
     # print(f"Calculation took {time_e - time_s} s")
 
+    riverline = np.array(riverline)
+    x = np.array(x)
+    ylim = -1 * mask.shape[0]
+    idx = riverline / ylim >= 0.2
+    riverline = riverline[idx]
+    x = x[idx]
+
     if len(riverline) > 0:
         coefs = np.polyfit(x, riverline, 1)
         m, b = coefs[0], coefs[1]

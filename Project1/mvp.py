@@ -5,9 +5,8 @@ from robomaster import robot
 from robomaster import camera
 import tagmap
 import utils
-from heading_control import heading_control
-from vcontrol import world_velocity
-from tagmap import unit
+import tagmap
+import json
 
 at_detector = Detector(
     families="tag36h11",
@@ -18,8 +17,6 @@ at_detector = Detector(
     decode_sharpening=0.25,
     debug=0
 )
-
-tag_size = 0.16
 
 def find_pose_from_tag(K, detection):
     m_half_size = tag_size / 2
@@ -48,9 +45,9 @@ def to_world_coords(tag_id, posc, rotc):
     if tag_id in tagmap.tags_top:
         Rwa = np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]])
     elif tag_id in tagmap.tags_left:
-        Rwa = np.array([[0, 0, -1], [-1, 0, 0], [0, 1, 0]])
+        Rwa = np.array([[0, 0, -1], [1, 0, 0], [0, 1, 0]])
     elif tag_id in tagmap.tags_right:
-        Rwa = np.array([[0, 0, 1], [1, 0, 0], [0, 1, 0]])
+        Rwa = np.array([[0, 0, 1], [-1, 0, 0], [0, 1, 0]])
     else:     # in tagmap.tags_bottom
         Rwa = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
 
@@ -59,8 +56,9 @@ def to_world_coords(tag_id, posc, rotc):
 
     Rca = rotc
     tca = -posc[0]
+    print(tca)
     # Invert posc because find_pose_from_tag gives translation from april tag
-    # to camera, but we can translation from camera to april tag
+    # to camera, but we care about translation from camera to april tag
     pc = np.array([0, 0, 0, 1]).T
 	
     Tca = np.zeros((4,4))
@@ -76,17 +74,9 @@ def to_world_coords(tag_id, posc, rotc):
     Twa[3,3] = 1
 
     return Twa@Tac@pc
-    
+
 
 if __name__ == "__main__":
-    """
-    Program flow:
-        startup -> assume roughly on starting point, facing towards 32
-        detect 32 and figure out exact location
-        calculate path
-        move along path?
-        ...
-    """
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="ap")
     ep_camera = ep_robot.camera
@@ -98,7 +88,6 @@ if __name__ == "__main__":
     K=np.array([[184.752 * 1.7, 0, 320], [0, 184.752 * 1.7, 180], [0, 0, 1]])
 
     path = utils.get_path('Map_stayaway.csv')
-    curr_idx = 1
 
     found_32 = False
 
@@ -108,19 +97,16 @@ if __name__ == "__main__":
             gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             gray.astype(np.uint8)
 
-            K=np.array([[184.752, 0, 320], [0, 184.752, 180], [0, 0, 1]])
-
             results = at_detector.detect(gray, estimate_tag_pose=False)
 
             for res in results:
-                # If AprilTag in frame, only 1 result 
                 _pose = find_pose_from_tag(K, res)
                 _rot, jaco = cv2.Rodrigues(_pose[1], _pose[1])
 
                 pts = res.corners.reshape((-1, 1, 2)).astype(np.int32)
                 img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=5)
                 cv2.circle(img, tuple(res.center.astype(np.int32)), 5, (0, 0, 255), -1)
-                id = res.tag_id#.decode("utf-8")
+                id = res.tag_id
                 if id == 32:
                     found_32 = True
                     pose = _pose
@@ -139,11 +125,17 @@ if __name__ == "__main__":
 
     current_pos = to_world_coords(32, pose, rot)
 
+    positions = []
+    curr_idx = 1
+
     while True:
+        with open('positions.json', 'w') as f:
+            json.dump(positions, f)
         curr = (current_pos[0], current_pos[1])
+        positions.append(curr)
+        prev_point = path[curr_idx - 1]
         next_point = path[curr_idx]
         print('moving to next point')
-        prev_vb = None
 
         while np.linalg.norm(np.array(curr) - np.array(next_point)) > 0.2:
             try:
@@ -161,11 +153,9 @@ if __name__ == "__main__":
                     for tag in results:
                         pose = find_pose_from_tag(K, tag)
                         x = pose[0][0]
-                        yaw = pose[1][2]
                         if not center_pose or abs(x) < abs(center_pose[0][0]):
-                            if yaw <= 0.5 and abs(x) < 0.3: # Thresholds for when estimate is bad
-                                center_tag, center_pose = tag, pose
-                
+                            center_tag, center_pose = tag, pose
+
                 if center_tag:
                     center_rot, jaco = cv2.Rodrigues(center_pose[1], center_pose[1])
 
@@ -175,16 +165,15 @@ if __name__ == "__main__":
 
                     current_pos = to_world_coords(center_tag.tag_id, center_pose, center_rot)
                     curr = (current_pos[0], current_pos[1])
+                    positions.append(curr)
 
                     velocity = np.array(next_point) - np.array(curr)
                     x_velocity = velocity[0]
                     y_velocity = velocity[1]
-                    # z_velocity = heading_control(np.array([0, 0]), np.array([center_pose[1][0], center_pose[1][1]]))
                     z_velocity = 0
                     vw = np.array([x_velocity, y_velocity, z_velocity])
 
                     Rbc = np.array([[0, 0, -1], [1, 0, 0], [0, 1, 0]])
-                    # Rbc = np.array([[-1, 0, 0], [0, 0, -1], [0, 1, 0]])
                     if center_tag.tag_id in tagmap.tags_top:
                         Rwa = np.array([[-1, 0, 0], [0, 0, 1], [0, 1, 0]])
                     elif center_tag.tag_id in tagmap.tags_left:
@@ -197,16 +186,25 @@ if __name__ == "__main__":
                     Rwc = Rwa @ Rac
                     Rcw = Rwc.T
                     vb = 0.5 * Rbc @ Rcw @ vw
-                    prev_vb = vb
+
+                    yaw = np.tan(center_pose[0][2] / center_pose[0][0])
+                    x_velocity = vb[0]
+                    y_velocity = vb[1]
+                    z_velocity = yaw
 
                     print(f'center_tag.tag_id: {center_tag.tag_id}')
                     print(f'current_pos: {current_pos}')
+                    print(f'next_point: {next_point}')
+                    print(f'vw: {vw}')
+                    print(f'vb: {vb}')
+                    print(f'x_velocity: {x_velocity}')
+                    print(f'y_velocity: {y_velocity}')
+                    print(f'z_velocity: {z_velocity}')
+                    ep_chassis.drive_speed(x=x_velocity, y=y_velocity, z=z_velocity, timeout=0.1)
+
                 else:
-                    vb = prev_vb
-                print(f'next_point: {next_point}')
-                print(f'vw: {vw}')
-                print(f'vb: {vb}')
-                ep_chassis.drive_speed(x=vb[0], y=vb[1], z=0, timeout=0.5)
+                    # Sees no tags, just rotate
+                    ep_chassis.drive_speed(x=0, y=0, z=-25, timeout=0.1)
 
                 cv2.imshow("img", img)
                 cv2.waitKey(10)

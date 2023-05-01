@@ -3,9 +3,8 @@ import numpy as np
 def load_map(path):
     return np.loadtxt(path, delimiter=',')
 
-def create_graph(path):
+def create_graph(map_):
     wall = 1
-    map_ = load_map(path)
     graph = {}
     goal = 2
     for row in range(map_.shape[0]):
@@ -55,22 +54,18 @@ def pr_to_path(start, pr):
     return path
 
 def scale_path(path):
-    """Given a path, scales the points to feet scale. Assumes that the starting
-    point is at (0, 0)."""
+    """Given a path, scales the points to feet scale, changes the starting point
+    to (0, 0), and swaps x and y."""
     unit = 0.5 # 0.5 feet
-    start_x, start_y = path[0]
-    zero_start_path = [(x - start_x, y - start_y) for x, y in path]
+    swapped_path = [(y, x) for x, y in path]
+    start_x, start_y = swapped_path[0]
+    zero_start_path = [(x - start_x, y - start_y) for x, y in swapped_path]
     scaled_path = [(x * unit, y * unit) for x, y in zero_start_path]
     return scaled_path
 
-def m_to_feet(position):
-    """Given an (x, y) tuple in meters, returns it in feet. Useful for
-    converting wheel odometry to our map scale."""
-    scale = 3.28084
-    return (position[0] * scale, position[1] * scale)
-
-def velocity(position, next_point):
-    """Given robot current position and next point in path, uses a proportional
-    controller to determine the x and y velocity of the robot."""
-    K = 1.5
-    return (K * (next_point[0] - position[0]), K * (next_point[1] - position[1]))
+def get_start_position(map_):
+    """Given a numpy array representing a map, gets the starting position of
+    the robot (represented by a 3)."""
+    raw_start_position = np.where(map_ == 3)
+    start_position = (raw_start_position[0][0], raw_start_position[1][0])
+    return start_position

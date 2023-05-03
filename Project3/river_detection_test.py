@@ -10,6 +10,19 @@ unrelated to this file, but potentially good resource for finding the landing si
 https://pyimagesearch.com/2016/02/08/opencv-shape-detection/
 
 python "Desktop/CMSC477 Workspace/CMSC477Team3/Project2/river_detection_test.py"
+
+
+- Path planning brings robot near river, signal that we're about to drop off a LEGO         
+- Use OpenCV to correct angle to river at slight distance away                              DONE
+- Move forward                                                                              DONE
+- Extend arm                                                                                DONE
+- Drop LEGO                                                                                 
+- Retract arm
+- Retreat backward
+- Control transfers back to path planning
+
+At arm pos (91, 32), river_y_prop ~= 0.73 at desired location
+
 """
 
 if __name__ == "__main__":
@@ -18,7 +31,7 @@ if __name__ == "__main__":
         y = p[1]
         if y > 4000000000:
             y -= 4294967296
-        print((x, y))
+        print(f"Arm pos = {(x, y)}")
 
     # example that graphs the mask and linear regression side by side
     # in real time with the camera stream
@@ -32,6 +45,7 @@ if __name__ == "__main__":
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     ep_chassis = ep_robot.chassis
+    # ep_arm.moveto(x=0, y=0).wait_for_completed() # Position of arm while in transit to river
     while True:
         try:
             img = ep_camera.read_cv2_image(strategy="newest", timeout=5.0)
@@ -44,6 +58,7 @@ if __name__ == "__main__":
                 print(f"river y = {river_y_prop}")
                 river_adj = np.array(retval["riverline"]) / retval["ylim"]
                 river_adj = river_adj[river_adj >= 0.2]
+                print(f"river_y_prop = {np.median(river_adj)}")
                 #print(f"filtered riverline array length = {len(river_adj)}")
                 plt.clf()
                 plt.subplot(1, 2, 1)

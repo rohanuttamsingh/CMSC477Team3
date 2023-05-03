@@ -14,9 +14,16 @@
 # limitations under the License.
 
 
+"""
+forward, bottom-most position: (208, -69)
+
+"""
+
+
 import robomaster
 from robomaster import robot
 import time
+import sns
 xd = 170
 yd = 65
 
@@ -30,7 +37,7 @@ if __name__ == '__main__':
         print((x, y))
 
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type="sta", sn='3JKCH8800100WM')
+    ep_robot.initialize(conn_type="sta", sn=sns.ROBOT5_SN)
 
     ep_gripper = ep_robot.gripper
     # open gripper
@@ -41,9 +48,9 @@ if __name__ == '__main__':
     ep_arm = ep_robot.robotic_arm
     ep_arm.sub_position(freq=5, callback=lambda p: print_pos(p))
    
-    ep_arm.moveto(x=71, y=30).wait_for_completed()
-    time.sleep(2)
-    ep_arm.move(x=140, y=-80).wait_for_completed()
+    # ep_arm.moveto(x=71, y=30).wait_for_completed()
+    # time.sleep(2)
+    # ep_arm.move(x=140, y=-80).wait_for_completed()
     # ep_arm.move(x=0, y=-160).wait_for_completed()
     # Move forward 20mm
     # ep_arm.moveto(x=71, y=30).wait_for_completed()
@@ -72,12 +79,14 @@ if __name__ == '__main__':
     # #ep_arm.moveto(x=-xd, y=0).wait_for_completed()
 
     # # open gripper
-    ep_gripper.open(power=50)
-    time.sleep(3)
-    ep_gripper.pause()
-    # ep_arm.moveto(x=0, y=0).wait_for_completed()
+    # ep_gripper.open(power=50)
+    # time.sleep(3)
+    # ep_gripper.pause()
+    # # ep_arm.moveto(x=0, y=0).wait_for_completed()
 
     # ep_arm.moveto(x=200, y=30).wait_for_completed()
+
+    time.sleep(2)
 
     ep_arm.unsub_position()
 

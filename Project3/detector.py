@@ -24,6 +24,10 @@ def detect_legos(image):
 def detect_nav(image):
     return detect(nav_detector, image)
 
+def can_see_lego(image):
+    legos = detect_legos(image)
+    return len(legos) > 0
+
 def get_closest_lego(image):
     """Closest lego is lego whose Euclidean distance to bottom center pixel is
     smallest."""
@@ -37,6 +41,10 @@ def get_closest_lego(image):
     print('All:', [(l['x'], l['y'], distance(l)) for l in sorted_legos])
     print('Closest:', closest['x'], closest['y'], distance(closest))
     return closest
+
+def get_closest_lego_coords(image):
+    closest = get_closest_lego(image)
+    return closest['x'], closest['y']
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()

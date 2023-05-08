@@ -1,4 +1,4 @@
-image_width = 640
+image_width = 1280
 threshold = 5
 detect_every_n_frames = 5
 

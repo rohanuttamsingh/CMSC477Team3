@@ -54,12 +54,13 @@ def pr_to_path(start, pr):
     return path
 
 def scale_path(path):
-    """Given a path, scales the points to feet scale, changes the starting point
-    to (0, 0), and swaps x and y."""
+    """Given a path, scales the points to feet scale and changes the starting
+    point to (0, 0)."""
     unit = 0.5 # 0.5 feet
-    swapped_path = [(y, x) for x, y in path]
-    start_x, start_y = swapped_path[0]
-    zero_start_path = [(x - start_x, y - start_y) for x, y in swapped_path]
+    # swapped_path = [(y, x) for x, y in path]
+    # start_x, start_y = swapped_path[0]
+    start_x, start_y = path[0]
+    zero_start_path = [(x - start_x, y - start_y) for x, y in path]
     scaled_path = [(x * unit, y * unit) for x, y in zero_start_path]
     return scaled_path
 

@@ -53,6 +53,12 @@ def get_corners(o):
     y2 = round(o['y'] + o['height'] / 2)
     return x1, x2, y1, y2
 
+def get_obstacles(image):
+    return list(filter(lambda o: o['class'] == 'obstacle', detect(nav_detector, image)))
+
+def get_obstacle_offset_from_center(obstacle):
+    return (obstacle['y'] + obstacle['height'] / 2) - ROWS // 2
+
 if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)

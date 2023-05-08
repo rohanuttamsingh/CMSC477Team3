@@ -169,20 +169,21 @@ def get_xy_velocity(idx, path):
 
 def mainLoop():
     map_ = path_planning.load_map('map_left.csv')
+    curr_position = pos[:2]
     while 1:
-        # Path planning to go to source
-        start_position = (0, 0)
+        # Path planning to go to lego source
         source_position = (13, 4) # Lego source
         graph, _ = path_planning.create_graph(map_)
         pr = path_planning.bfs_reverse(graph, source_position)
-        path = path_planning.scale_path(path_planning.pr_to_path(start_position, pr))
+        path = path_planning.scale_path(path_planning.pr_to_path(curr_position, pr))
         threshold = 0.2 # feet
 
+        # Move to source
         idx = 1
         i = 0
         while True:
             if idx == len(path) - 1:
-                print('Made it')
+                print('Made it to lego source')
                 break
             if distance(idx, path) <= threshold:
                 print(f'Passed point {idx}')
@@ -203,6 +204,29 @@ def mainLoop():
         # Reverse slightly backward
 
         # Path planning to go to river
+        river_position = (13, 14) # River, may need to change this
+        graph, _ = path_planning.create_graph(map_)
+        pr = path_planning.bfs_reverse(graph, river_position)
+        path = path_planning.scale_path(path_planning.pr_to_path(curr_position, pr))
+        threshold = 0.2 # feet
+
+        # Move to river
+        idx = 1
+        i = 0
+        while True:
+            if idx == len(path) - 1:
+                print('Made it to river')
+                break
+            if distance(idx, path) <= threshold:
+                print(f'Passed point {idx}')
+                idx += 1
+            xy_velocity = get_xy_velocity(idx, path)
+            if i == 0:
+                print('position:', pos)
+                print('next point:', path[idx])
+                print('velocity:', xy_velocity)
+            i = (i + 1) % 30
+            ep_chassis.drive_speed(x=xy_velocity[0], y=xy_velocity[1], z=0, timeout=0.1)
 
         # Align to river, move forward, and drop LEGO
         drop_at_river()

@@ -46,6 +46,13 @@ def get_closest_lego_coords(image):
     closest = get_closest_lego(image)
     return closest['x'], closest['y']
 
+def get_corners(o):
+    x1 = round(o['x'] - o['width'] / 2)
+    x2 = round(o['x'] + o['width'] / 2)
+    y1 = round(o['y'] - o['height'] / 2)
+    y2 = round(o['y'] + o['height'] / 2)
+    return x1, x2, y1, y2
+
 if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
@@ -60,18 +67,12 @@ if __name__ == '__main__':
                 img = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)   
                 legos = detect_legos(img)
                 for lego in legos:
-                    x1 = round(lego['x'] - lego['width'] / 2)
-                    x2 = round(lego['x'] + lego['width'] / 2)
-                    y1 = round(lego['y'] - lego['height'] / 2)
-                    y2 = round(lego['y'] + lego['height'] / 2)
+                    x1, x2, y1, y2 = get_corners(lego)
                     pts = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]).reshape((-1, 1, 2))
                     img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=1)
                 closest_lego = get_closest_lego(img)
                 if closest_lego is not None:
-                    x1 = round(lego['x'] - lego['width'] / 2)
-                    x2 = round(lego['x'] + lego['width'] / 2)
-                    y1 = round(lego['y'] - lego['height'] / 2)
-                    y2 = round(lego['y'] + lego['height'] / 2)
+                    x1, x2, y1, y2 = get_corners(lego)
                     pts = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]).reshape((-1, 1, 2))
                     img = cv2.polylines(img, [pts], isClosed=True, color=(0, 255, 0), thickness=2)
                 img = cv2.line(img, (COLS // 2, 0), (COLS // 2, ROWS), color=(255, 0, 0), thickness=1)

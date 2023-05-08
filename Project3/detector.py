@@ -57,7 +57,11 @@ def get_obstacles(image):
     return list(filter(lambda o: o['class'] == 'obstacle', detect(nav_detector, image)))
 
 def get_obstacle_offset_from_center(obstacle):
-    return (obstacle['y'] + obstacle['height'] / 2) - ROWS // 2
+    """Returns (x distance from center of object to center of camera frame,
+    y distance from bottom of object to center of camera frame)"""
+    x = obstacle['x'] - COLS // 2
+    y = (obstacle['y'] + obstacle['height'] / 2) - ROWS // 2
+    return x, y
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()

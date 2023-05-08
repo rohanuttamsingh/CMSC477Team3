@@ -196,12 +196,12 @@ def mainLoop():
             i = (i + 1) % 30
             ep_chassis.drive_speed(x=xy_velocity[0], y=xy_velocity[1], z=0, timeout=0.1)
 
-        # Move slightly forward 
-
         # Use NN to pick up LEGO
         grab_lego()
         ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+
         # Reverse slightly backward
+        ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
         # Path planning to go to river
         river_position = (13, 14) # River, may need to change this

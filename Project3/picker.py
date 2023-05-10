@@ -16,12 +16,30 @@ goal_y = 285
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    # Mapping from robot coordinate system to map coordinate system
-    m_to_ft = 3.28084
-    # x and y are swapped
-    # TODO: Sign of movement varies, test this on every boot to detemrine what
-    # should be flipped
-    pos[0], pos[1], pos[2] = -p[1] * m_to_ft, -p[0] * m_to_ft, p[2]
+    pos[0], pos[1], pos[2] = -p[0], -p[1], p[2]
+
+def subtract_start_position(start_position, coords):
+    return (coords[0] - start_position[0], coords[1] - start_position[1])
+
+def graph_to_real_coords(coords):
+    real_y, real_x = coords
+    conversion = 0.1524 # 1/2 ft in m
+    real_x *= conversion
+    real_y *= conversion
+    return (real_x, real_y)
+
+def process_path(path, start_position_graph):
+    path = [subtract_start_position(start_position_graph, graph_coords) for graph_coords in path]
+    path = [graph_to_real_coords(graph_coords) for graph_coords in path]
+    return path
+
+def controller(next_position):
+    K = [1, 1.2]
+    diff = np.array(next_position) - pos[:2]
+    return K * diff
+
+def distance(position):
+    return np.linalg.norm(np.array(position) - pos[:2])
 
 def grab_lego():
     i = 0
@@ -145,99 +163,99 @@ def drop_at_river():
 def obstacleDetection():
     pass
 
-def distance(idx, path):
-    """Distance to point at index idx in path."""
-    diff = np.array(path[idx]) - pos[:2]
-    return np.linalg.norm(diff)
-
-def get_xy_velocity(idx, path):
-    """Velocity to get to point at index idx in path."""
-    K = 0.25
-    # Same velocity on x and y moves y half as fast as x
-    Kx = K
-    Ky = 1.5 * Kx
-    # Ky = Kx
-    velocity = np.array(path[idx]) - pos[:2]
-    velocity[0], velocity[1] = velocity[1], velocity[0]
-    velocity[0] *= Kx
-    velocity[1] *= Ky
-    # Feedforward velocity is velocity from last waypoint to this waypoint
-    # feedforward = np.array(path[idx]) - np.array(path[idx - 1])
-    # feedforward[0] *= Kx / 2
-    # feedforward[1] *= Ky / 2
-    # velocity += feedforward
-    return velocity
-
 def mainLoop():
+    trajectory_plot = np.zeros((480, 640, 3), dtype=np.uint8)
+    plot_off_x = int(trajectory_plot.shape[1]/2)
+    plot_off_y = int(trajectory_plot.shape[0]/2)
+    # Each pixel in the plot is 1 ft / plot_scale
+    plot_scale = 100
+
     map_ = path_planning.load_map('map_left.csv')
+    graph, _ = path_planning.create_graph(map_)
+    source_position_graph = (13, 4)
+    river_position_graph = (13, 14)
+    start_position_graph = (1, 1)
+
+    # Path planning to go from starting position to lego source
+    # Just do this once, because after this will go from river to lego source
+    pr = path_planning.bfs_reverse(graph, source_position_graph)
+    path = path_planning.pr_to_path(start_position_graph, pr)
+    path = process_path(path, start_position_graph)
+    threshold = 0.1 # 10cm
+
+    print(path)
+    # time.sleep(3)
+
+    i = 0
+    idx = 0
+    threshold = 0.1 # 10cm
+    while idx < len(path):
+        velocities = controller(path[idx])
+        ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+        if i == 0:
+            print(f'position: {pos}')
+            print(f'next point: {path[idx]}')
+            print(f'velocity: {velocities}')
+        i = (i + 1) % 30
+        if distance(path[idx]) < threshold:
+            print(f'')
+            idx += 1
+        cv2.circle(trajectory_plot,
+                    (int(plot_scale * pos[0] + plot_off_x),
+                    int(plot_scale * pos[1] + plot_off_y)),
+                    1, (0,0,255), 1)
+        cv2.imshow('Trajectory plot', trajectory_plot)
+        cv2.waitKey(1)
+
+    ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+    print('*****')
+    print('Made it to lego source')
+    print('*****')
+    time.sleep(3)
+
+    # # Use NN to pick up LEGO
+    # grab_lego()
+    # ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+
+    # # Reverse slightly backward
+    # ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
+
     while True:
-        # Path planning to go to lego source
-        curr_position = tuple(round(p) for p in pos[:2]) # TODO: Round to nearest 0.5
-        source_position = (13, 4) # Lego source
-        graph, _ = path_planning.create_graph(map_)
-        pr = path_planning.bfs_reverse(graph, source_position)
-        path = path_planning.scale_path(path_planning.pr_to_path(curr_position, pr))
-        threshold = 0.2 # feet
+        # Path planning to go from source to river
+        pr = path_planning.bfs_reverse(graph, river_position_graph)
+        path = path_planning.pr_to_path(source_position_graph, pr)
+        path = process_path(path, source_position_graph)
+        threshold = 0.1 # 10cm
 
         print(path)
-        time.sleep(3)
+        # time.sleep(3)
 
-        # Move to source
-        idx = 1
         i = 0
-        while True:
-            if idx == len(path) - 1:
-                print('Made it to lego source')
-                break
-            if distance(idx, path) <= threshold:
-                print(f'Passed point {idx}')
-                idx += 1
-            xy_velocity = get_xy_velocity(idx, path)
+        idx = 0
+        threshold = 0.1 # 10cm
+        while idx < len(path):
+            velocities = controller(path[idx])
+            ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
             if i == 0:
-                print('position:', pos)
-                print('next point:', path[idx])
-                print('velocity:', xy_velocity)
+                print(f'position: {pos}')
+                print(f'next point: {path[idx]}')
+                print(f'velocity: {velocities}')
             i = (i + 1) % 30
-            ep_chassis.drive_speed(x=xy_velocity[0], y=xy_velocity[1], z=0, timeout=0.1)
+            if distance(path[idx]) < threshold:
+                print(f'')
+                idx += 1
+            cv2.circle(trajectory_plot,
+                        (int(plot_scale * pos[0] + plot_off_x),
+                        int(plot_scale * pos[1] + plot_off_y)),
+                        1, (0,0,255), 1)
+            cv2.imshow('Trajectory plot', trajectory_plot)
+            cv2.waitKey(1)
 
         ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+        print('*****')
+        print('Made it to river')
+        print('*****')
         time.sleep(3)
-
-        # # Use NN to pick up LEGO
-        # grab_lego()
-        # ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
-
-        # # Reverse slightly backward
-        # ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
-
-        # Path planning to go to river
-        curr_position = tuple(round(p) for p in pos[:2])
-        river_position = (13, 14) # River, may need to change this
-        graph, _ = path_planning.create_graph(map_)
-        pr = path_planning.bfs_reverse(graph, river_position)
-        path = path_planning.scale_path(path_planning.pr_to_path(curr_position, pr))
-        threshold = 0.2 # feet
-
-        print(path)
-        time.sleep(3)
-
-        # Move to river
-        idx = 1
-        i = 0
-        while True:
-            if idx == len(path) - 1:
-                print('Made it to river')
-                break
-            if distance(idx, path) <= threshold:
-                print(f'Passed point {idx}')
-                idx += 1
-            xy_velocity = get_xy_velocity(idx, path)
-            if i == 0:
-                print('position:', pos)
-                print('next point:', path[idx])
-                print('velocity:', xy_velocity)
-            i = (i + 1) % 30
-            ep_chassis.drive_speed(x=xy_velocity[0], y=xy_velocity[1], z=0, timeout=0.1)
 
         # # Align to river, move forward, and drop LEGO
         # drop_at_river()
@@ -250,6 +268,50 @@ def mainLoop():
         # UDPSock.sendto(data.encode(), addr) 
         # UDPSock.close()
         # # Loop!
+
+        # Path planning to go from river to lego source
+        pr = path_planning.bfs_reverse(graph, source_position_graph)
+        path = path_planning.pr_to_path(river_position_graph, pr)
+        path = process_path(path, river_position_graph)
+        threshold = 0.1 # 10cm
+
+        print(path)
+        # time.sleep(3)
+
+        i = 0
+        idx = 0
+        threshold = 0.1 # 10cm
+        while idx < len(path):
+            velocities = controller(path[idx])
+            ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+            if i == 0:
+                print(f'position: {pos}')
+                print(f'next point: {path[idx]}')
+                print(f'velocity: {velocities}')
+            i = (i + 1) % 30
+            if distance(path[idx]) < threshold:
+                print(f'')
+                idx += 1
+            cv2.circle(trajectory_plot,
+                        (int(plot_scale * pos[0] + plot_off_x),
+                        int(plot_scale * pos[1] + plot_off_y)),
+                        1, (0,0,255), 1)
+            cv2.imshow('Trajectory plot', trajectory_plot)
+            cv2.waitKey(1)
+
+        ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+        print('*****')
+        print('Made it to lego source')
+        print('*****')
+        time.sleep(3)
+
+        # # Use NN to pick up LEGO
+        # grab_lego()
+        # ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+
+        # # Reverse slightly backward
+        # ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
+
 
 
 def oldmain():
@@ -304,7 +366,9 @@ if __name__ == "__main__":
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
     UDPSock.bind(addr) 
                     
-    tMain = threading.Thread(target=mainLoop)
+    # tMain = threading.Thread(target=mainLoop)
     # tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
-    tMain.start()
+    # tMain.start()
     # tObstacles.start()
+
+    mainLoop()

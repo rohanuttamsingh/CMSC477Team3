@@ -1,14 +1,13 @@
 import cv2
 import numpy as np
 from robomaster import robot
-from typing import Tuple
 
 import sns
 import path_planning
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
+    pos[0], pos[1], pos[2] = -p[0], -p[1], p[2]
 
 def subtract_start_position(start_position, coords):
     return (coords[0] - start_position[0], coords[1] - start_position[1])
@@ -19,6 +18,11 @@ def graph_to_real_coords(coords):
     real_x *= conversion
     real_y *= conversion
     return (real_x, real_y)
+
+def process_path(path, start_position_graph):
+    path = [subtract_start_position(start_position_graph, graph_coords) for graph_coords in path]
+    path = [graph_to_real_coords(graph_coords) for graph_coords in path]
+    return path
 
 def controller(next_position):
     K = 1
@@ -48,39 +52,38 @@ if __name__ == '__main__':
     goal_position_graph = (13, 14) # River
     pr = path_planning.bfs_reverse(graph, goal_position_graph)
     path = path_planning.pr_to_path(start_position_graph, pr)
-    path = [subtract_start_position(start_position_graph, graph_coords) for graph_coords in path]
-    path = [graph_to_real_coords(graph_coords) for graph_coords in path]
+    path = process_path(path, start_position_graph)
     print(path)
 
     i = 0
     idx = 0
     threshold = 0.1 # 10cm
-    while idx < len(path):
-        velocities = controller(path[idx])
-        ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+    # while idx < len(path):
+    #     velocities = controller(path[idx])
+    #     ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+    #     if i == 0:
+    #         print(f'position: {pos}')
+    #         print(f'next point: {path[idx]}')
+    #         print(f'velocity: {velocities}')
+    #     i = (i + 1) % 30
+    #     if distance(path[idx]) < threshold:
+    #         print(f'')
+    #         idx += 1
+    #     cv2.circle(trajectory_plot,
+    #                 (int(plot_scale * pos[0] + plot_off_x),
+    #                 int(plot_scale * pos[1] + plot_off_y)),
+    #                 1, (0,0,255), 1)
+    #     cv2.imshow('trajectory plot', trajectory_plot)
+    #     cv2.waitkey(1)
+
+    while True:
+        ep_chassis.drive_speed(x=-0.1, y=-0.2, z=0, timeout=0.1)
         if i == 0:
             print(f'position: {pos}')
-            print(f'next point: {path[idx]}')
-            print(f'velocity: {velocities}')
         i = (i + 1) % 30
-        if distance(path[idx]) < threshold:
-            print(f'')
-            idx += 1
         cv2.circle(trajectory_plot,
                     (int(plot_scale * pos[0] + plot_off_x),
                     int(plot_scale * pos[1] + plot_off_y)),
                     1, (0,0,255), 1)
         cv2.imshow('Trajectory plot', trajectory_plot)
         cv2.waitKey(1)
-
-    # while True:
-    #     ep_chassis.drive_speed(x=-0.2, y=0, z=0, timeout=0.1)
-    #     if i == 0:
-    #         print(f'position: {pos}')
-    #     i = (i + 1) % 30
-    #     cv2.circle(trajectory_plot,
-    #                 (int(plot_scale * pos[0] + plot_off_x),
-    #                 int(plot_scale * pos[1] + plot_off_y)),
-    #                 1, (0,0,255), 1)
-    #     cv2.imshow('Trajectory plot', trajectory_plot)
-    #     cv2.waitKey(1)

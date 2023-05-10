@@ -285,7 +285,7 @@ def oldmain():
 if __name__ == "__main__":
     # initialization stuff goes here
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis

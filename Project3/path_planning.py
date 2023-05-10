@@ -13,12 +13,18 @@ def create_graph(map_):
                 if map_[row, col] == goal:
                     goal_position = (row, col)
                 neighbors = []
-                dirs = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+                dirs = [(1, 0), (0, 1), (-1, 0), (0, -1)]
                 for row_diff, col_diff in dirs:
                     new_row, new_col = row + row_diff, col + col_diff
                     if 0 <= new_row < map_.shape[0] and 0 <= new_col < map_.shape[1]:
                         if map_[new_row, new_col] != wall:
-                            neighbors.append((new_row, new_col))
+                            neighbors.append(((new_row, new_col), 1))
+                dirs = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
+                for row_diff, col_diff in dirs:
+                    new_row, new_col = row + row_diff, col + col_diff
+                    if 0 <= new_row < map_.shape[0] and 0 <= new_col < map_.shape[1]:
+                        if map_[new_row, new_col] != wall:
+                            neighbors.append(((new_row, new_col), np.sqrt(2)))
                 graph[(row, col)] = neighbors
     return graph, goal_position
 
@@ -33,11 +39,12 @@ def bfs_reverse(graph, goal_position):
         curr, d = q.pop(0)
         if curr not in visited:
             visited.add(curr)
-            for neighbor in graph[curr]:
-                if neighbor not in visited and (neighbor not in ds or d + 1 < ds[neighbor]):
+            for neighbor, next_d in graph[curr]:
+                new_d = d + next_d
+                if neighbor not in visited and (neighbor not in ds or new_d < ds[neighbor]):
                     pr[neighbor] = curr
-                    ds[neighbor] = d + 1
-                    q.append((neighbor, d + 1))
+                    ds[neighbor] = new_d
+                    q.append((neighbor, new_d))
     return pr
 
 def pr_to_path(start, pr):

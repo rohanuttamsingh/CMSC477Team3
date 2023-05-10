@@ -38,15 +38,16 @@ if __name__ == '__main__':
 
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type="sta", sn=sns.ROBOT5_SN)
+        
+    ep_arm = ep_robot.robotic_arm
+    ep_arm.sub_position(freq=5, callback=lambda p: print_pos(p))
 
     ep_gripper = ep_robot.gripper
     # open gripper
-    # ep_gripper.open(power=50)
-    # time.sleep(1)
-    # ep_gripper.pause()
-
-    ep_arm = ep_robot.robotic_arm
-    ep_arm.sub_position(freq=5, callback=lambda p: print_pos(p))
+    ep_gripper.open(power=50)
+    time.sleep(3)
+    ep_gripper.pause()
+    #ep_arm.moveto(x=208, y=-69).wait_for_completed()
    
     # ep_arm.moveto(x=71, y=30).wait_for_completed()
     # time.sleep(2)

@@ -1,14 +1,12 @@
 import time
-import cv2
 import numpy as np
 from socket import *
 from robomaster import robot
 from robomaster import camera
-from roboflow import Roboflow
 import sns
 import utils
-from river import angle_to_river
 import threading
+import detector
 
 """
 
@@ -35,7 +33,7 @@ NOTE 3: cannot use april tags to check robot orientation - must keep track of it
 """
 
 goal_x = utils.image_width // 2
-goal_y = 285
+goal_y = 350
 
 legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
@@ -51,23 +49,21 @@ def grab_lego():
         try:
             image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
             if i == 0:
-                predictions = utils.detect(model, image)
-
                 # Spin to find lego
                 if not found_lego:
-                    found_lego = utils.can_see_lego(predictions)
+                    found_lego = detector.can_see_lego(image)
                     ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
 
                 # Spin to center lego
                 elif not centered_with_lego:
-                    lego_x, _ = utils.get_lego_coords(predictions)
+                    lego_x, _ =  detector.get_closest_lego_coords(image)
                     centered_with_lego = goal_x - utils.threshold <= lego_x <= goal_x + utils.threshold
                     z_speed = (lego_x - goal_x) / 10
                     ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.5)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
-                    lego_x, lego_y = utils.get_lego_coords(predictions)
+                    lego_x, lego_y = detector.get_closest_lego_coords(image)
                     in_front_of_lego = goal_y - utils.threshold <= lego_y <= goal_y + utils.threshold
                     x_speed = (goal_y - lego_y) / 200
                     z_speed = (lego_x - goal_x) / 10
@@ -104,6 +100,31 @@ def signalListener():
 
 # TODO
 def obstacleDetection():
+    # ML gives position of box -> find center point of its bottom edge
+    # and designate that point's location as (x,y), where:
+    #   - x = horizontal location in image
+    #   - y = vertical location in image
+    # We have focal length in meters => from that, we can determine the
+    # height of the image plane in meters using the relationship
+    # h_ip = 2*f*tan(23.89)
+    # Calculate proportional displacement of bottom edge, i.e. y/y_center
+    # => this will be a constant ratio independent of units, call it Y
+    # Thus, the metric displacement along the image plane becomes Y*h_ip
+    # Have focal length in m and now image "height" in m as well -->
+    # dimensions now agree and so can safely take arctangent
+    # Thus, phi = arctan(Y*h_ip / f)
+    # Already have theta = 61.45 from prior calculations
+    # Thus, d' = 32.5tan(theta +- phi) <-- add or subtract depending on
+    # whether bottom edge is above or below image's vertical center
+    # d' is ground distance along camera axis from camera to bottom edge
+    # => to convert to robot frame, just add ~5 cm to d' => d = d' + 5
+    # Can do the same process to determine horizontal location a
+    # a = d*tan(psi), where psi = arctan(X*w_ip / f), where X = x/x_center
+    # and w_ip = 2*f*tan(37.69) = metric width of image plane
+
+    # Thus, have location of obstacle as (d,a) in robot frame
+    # => convert to world frame, and add to map! 
+
     pass
 
 
@@ -117,7 +138,9 @@ def mainLoop():
             # none dropped off atm - idle while waiting for signal
             pass
         # NN picks up LEGO
+        ep_arm.moveto(x=208, y=-69).wait_for_completed()
         grab_lego()
+        ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
         # Path planning to dropoff point
 
         # Orient to face dropzone and move forward if necessary
@@ -143,10 +166,6 @@ if __name__ == "__main__":
     ep_chassis = ep_robot.chassis
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
-
-    rf = Roboflow(api_key='kKusTXhj0ObVGmi9slHp')
-    project = rf.workspace().project('project2-l7rdy')
-    model = project.version(4).model
     
     host = ''
     port = 13000 

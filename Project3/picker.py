@@ -1,14 +1,13 @@
 import time
-import cv2
 import numpy as np
 from socket import *
 from robomaster import robot
 from robomaster import camera
-from roboflow import Roboflow
 import sns
 import utils
 from river import angle_to_river
 import threading
+import detector
 
 goal_x = utils.image_width // 2
 goal_y = 285
@@ -25,23 +24,21 @@ def grab_lego():
         try:
             image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
             if i == 0:
-                predictions = utils.detect(model, image)
-
                 # Spin to find lego
                 if not found_lego:
-                    found_lego = utils.can_see_lego(predictions)
+                    found_lego = detector.can_see_lego(image)
                     ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
 
                 # Spin to center lego
                 elif not centered_with_lego:
-                    lego_x, _ = utils.get_lego_coords(predictions)
+                    lego_x, _ = detector.get_closest_lego_coords(image)
                     centered_with_lego = goal_x - utils.threshold <= lego_x <= goal_x + utils.threshold
                     z_speed = (lego_x - goal_x) / 10
                     ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.5)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
-                    lego_x, lego_y = utils.get_lego_coords(predictions)
+                    lego_x, lego_y = detector.get_closest_lego_coords(image)
                     in_front_of_lego = goal_y - utils.threshold <= lego_y <= goal_y + utils.threshold
                     x_speed = (goal_y - lego_y) / 200
                     z_speed = (lego_x - goal_x) / 10
@@ -54,6 +51,7 @@ def grab_lego():
                     ep_gripper.pause()
                     ep_arm.move(x=0, y=60).wait_for_completed()
                     gripping_lego = True
+                    return
                 
                 # Grabbed lego => return to main loop
                 else:
@@ -131,9 +129,19 @@ def drop_at_river():
     return
 
 
-# Listens for signals from the picker that a LEGO has been dropped off, and
-# increments the value of legos_waiting correspondingly
+# Looks for obstacles and adds them to the map
 def obstacleDetection():
+    # assume we have some function that returns phi and psi, where
+    #   - phi = vertical angular offset from camera axis
+    #   - psi = horizontal angular offset from camera axis
+    # then, in camera frame, we can calculate:
+    #   - depth from robot is d = 32.5tan(phi + theta)
+    #   - horizontal displacement is a = d*tan(psi)
+    # => box is at (d,a) in camera frame
+    # camera is located in front of robot center
+    # => to get to robot frame, add 5 cm to d
+    # => box is at (d+5,a) in robot frame
+    # => convert to world coordinates before adding to map
     pass
 
 
@@ -141,13 +149,19 @@ def mainLoop():
     while 1:
         # Path planning to go to source
 
-        # Move slightly forward 
+        # Move slightly forward
+        # grab_lego() already involves advancing toward LEGO to pick it up
+        # => maybe don't need this as an explicit separate step in the loop?
 
         # Use NN to pick up LEGO
+        ep_gripper.open(power=50)
+        time.sleep(3)
+        ep_gripper.pause()
+        ep_arm.moveto(x=208, y=-69).wait_for_completed()
         grab_lego()
         ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
         # Reverse slightly backward
-
+        break
         # Path planning to go to river
 
         # Align to river, move forward, and drop LEGO
@@ -162,8 +176,6 @@ def mainLoop():
         UDPSock.close()
         # Loop!
 
-
-def oldmain():
     # Loop:
     #   Picker starts at starting location
     #   Move to LEGO source zone
@@ -190,22 +202,17 @@ def oldmain():
     # adding to the map then recalculating Dijkstra's as needed; for the other
     # robot, we have options: either stop and wait for it to leave frame, or
     # attempt to maneuever around it
-    pass
 
 
 if __name__ == "__main__":
     # initialization stuff goes here
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     ep_chassis = ep_robot.chassis
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
-
-    rf = Roboflow(api_key='kKusTXhj0ObVGmi9slHp')
-    project = rf.workspace().project('project2-l7rdy')
-    model = project.version(4).model
     
     host = ''
     port = 13000 

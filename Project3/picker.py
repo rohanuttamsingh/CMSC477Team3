@@ -8,10 +8,19 @@ import utils
 from river import angle_to_river
 import threading
 import detector
+import path_planning
 
 goal_x = utils.image_width // 2
 goal_y = 285
 
+pos = np.zeros((3,))
+def sub_position_handler(p):
+    # Mapping from robot coordinate system to map coordinate system
+    m_to_ft = 3.28084
+    # x and y are swapped
+    # TODO: Sign of movement varies, test this on every boot to detemrine what
+    # should be flipped
+    pos[0], pos[1], pos[2] = -p[1] * m_to_ft, -p[0] * m_to_ft, p[2]
 
 def grab_lego():
     i = 0
@@ -144,14 +153,70 @@ def obstacleDetection():
     # => convert to world coordinates before adding to map
     pass
 
+def distance(idx, path):
+    """Distance to point at index idx in path."""
+    diff = np.array(path[idx]) - pos[:2]
+    return np.linalg.norm(diff)
+
+def get_xy_velocity(idx, path):
+    """Velocity to get to point at index idx in path."""
+    K = 0.25
+    # Same velocity on x and y moves y half as fast as x
+    Kx = K
+    Ky = 1.5 * Kx
+    # Ky = Kx
+    velocity = np.array(path[idx]) - pos[:2]
+    velocity[0], velocity[1] = velocity[1], velocity[0]
+    velocity[0] *= Kx
+    velocity[1] *= Ky
+    # Feedforward velocity is velocity from last waypoint to this waypoint
+    # feedforward = np.array(path[idx]) - np.array(path[idx - 1])
+    # feedforward[0] *= Kx / 2
+    # feedforward[1] *= Ky / 2
+    # velocity += feedforward
+    return velocity
 
 def mainLoop():
-    while 1:
-        # Path planning to go to source
+    map_ = path_planning.load_map('map_left.csv')
+    while True:
+        # Path planning to go to lego source
+        curr_position = tuple(round(p) for p in pos[:2]) # TODO: Round to nearest 0.5
+        source_position = (13, 4) # Lego source
+        graph, _ = path_planning.create_graph(map_)
+        pr = path_planning.bfs_reverse(graph, source_position)
+        path = path_planning.scale_path(path_planning.pr_to_path(curr_position, pr))
+        threshold = 0.2 # feet
+
+        print(path)
+        time.sleep(3)
+
+        # Move to source
+        idx = 1
+        i = 0
+        while True:
+            if idx == len(path) - 1:
+                print('Made it to lego source')
+                break
+            if distance(idx, path) <= threshold:
+                print(f'Passed point {idx}')
+                idx += 1
+            xy_velocity = get_xy_velocity(idx, path)
+            if i == 0:
+                print('position:', pos)
+                print('next point:', path[idx])
+                print('velocity:', xy_velocity)
+            i = (i + 1) % 30
+            ep_chassis.drive_speed(x=xy_velocity[0], y=xy_velocity[1], z=0, timeout=0.1)
+
+        ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+        time.sleep(3)
 
         # Move slightly forward
         # grab_lego() already involves advancing toward LEGO to pick it up
         # => maybe don't need this as an explicit separate step in the loop?
+        # # Use NN to pick up LEGO
+        # grab_lego()
+        # ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
 
         # Use NN to pick up LEGO
         ep_gripper.open(power=50)
@@ -162,19 +227,49 @@ def mainLoop():
         ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
         # Reverse slightly backward
         break
-        # Path planning to go to river
+        # # Reverse slightly backward
+        # ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
-        # Align to river, move forward, and drop LEGO
-        drop_at_river()
-        # Send signal to other robot
-        host = "192.168.50.4" # set to IP address of target computer 
-        port = 13000 
-        addr = (host, port) 
-        UDPSock = socket(AF_INET, SOCK_DGRAM) 
-        data = 'lego_dropped'
-        UDPSock.sendto(data.encode(), addr) 
-        UDPSock.close()
-        # Loop!
+        # Path planning to go to river
+        curr_position = tuple(round(p) for p in pos[:2])
+        river_position = (13, 14) # River, may need to change this
+        graph, _ = path_planning.create_graph(map_)
+        pr = path_planning.bfs_reverse(graph, river_position)
+        path = path_planning.scale_path(path_planning.pr_to_path(curr_position, pr))
+        threshold = 0.2 # feet
+
+        print(path)
+        time.sleep(3)
+
+        # Move to river
+        idx = 1
+        i = 0
+        while True:
+            if idx == len(path) - 1:
+                print('Made it to river')
+                break
+            if distance(idx, path) <= threshold:
+                print(f'Passed point {idx}')
+                idx += 1
+            xy_velocity = get_xy_velocity(idx, path)
+            if i == 0:
+                print('position:', pos)
+                print('next point:', path[idx])
+                print('velocity:', xy_velocity)
+            i = (i + 1) % 30
+            ep_chassis.drive_speed(x=xy_velocity[0], y=xy_velocity[1], z=0, timeout=0.1)
+
+        # # Align to river, move forward, and drop LEGO
+        # drop_at_river()
+        # # Send signal to other robot
+        # host = "192.168.50.4" # set to IP address of target computer 
+        # port = 13000 
+        # addr = (host, port) 
+        # UDPSock = socket(AF_INET, SOCK_DGRAM) 
+        # data = 'lego_dropped'
+        # UDPSock.sendto(data.encode(), addr) 
+        # UDPSock.close()
+        # # Loop!
 
     # Loop:
     #   Picker starts at starting location
@@ -209,8 +304,9 @@ if __name__ == "__main__":
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
     ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
+    ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
     
@@ -222,6 +318,6 @@ if __name__ == "__main__":
     UDPSock.bind(addr) 
                     
     tMain = threading.Thread(target=mainLoop)
-    tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
+    # tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
     tMain.start()
-    tObstacles.start()
+    # tObstacles.start()

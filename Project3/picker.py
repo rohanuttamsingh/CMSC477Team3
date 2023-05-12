@@ -6,13 +6,17 @@ from robomaster import robot
 from robomaster import camera
 from roboflow import Roboflow
 import sns
-import utils
 from river import angle_to_river
 import threading
 import path_planning
+import detector
 
-goal_x = utils.image_width // 2
-goal_y = 285
+lego_goal_x = detector.COLS // 2
+lego_goal_y = 285
+lego_x_threshold = 5
+lego_y_threshold = 5
+
+detect_every_n_frames = 5
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
@@ -50,28 +54,26 @@ def grab_lego():
 
     while True:
         try:
-            image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
+            image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
             if i == 0:
-                predictions = utils.detect(model, image)
-
                 # Spin to find lego
                 if not found_lego:
-                    found_lego = utils.can_see_lego(predictions)
-                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+                    found_lego = detector.can_see_lego(image)
+                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=5.0)
 
                 # Spin to center lego
                 elif not centered_with_lego:
-                    lego_x, _ = utils.get_lego_coords(predictions)
-                    centered_with_lego = goal_x - utils.threshold <= lego_x <= goal_x + utils.threshold
-                    z_speed = (lego_x - goal_x) / 10
-                    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.5)
+                    lego_x, _ = detector.get_closest_lego_coords(image)
+                    centered_with_lego = abs(lego_x - lego_goal_x) <= lego_x_threshold
+                    z_speed = (lego_x - lego_goal_x) / 10
+                    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=5.0)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
-                    lego_x, lego_y = utils.get_lego_coords(predictions)
-                    in_front_of_lego = goal_y - utils.threshold <= lego_y <= goal_y + utils.threshold
-                    x_speed = (goal_y - lego_y) / 200
-                    z_speed = (lego_x - goal_x) / 10
+                    lego_x, lego_y = detector.get_lego_coords(image)
+                    in_front_of_lego = abs(lego_y - lego_goal_y) <= lego_y_threshold
+                    x_speed = (lego_goal_y - lego_y) / 200
+                    z_speed = (lego_x - lego_goal_x) / 10
                     ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
 
                 # Squeeze the gripper
@@ -84,8 +86,9 @@ def grab_lego():
                 
                 # Grabbed lego => return to main loop
                 else:
-                    return
-            i = (i + 1) % utils.detect_every_n_frames
+                    break
+            i = (i + 1) % detect_every_n_frames
+
         except KeyboardInterrupt:
             ep_camera.stop_video_stream()
             ep_robot.close()
@@ -101,7 +104,7 @@ def drop_at_river():
     # move up right next to river
     while True:
         try:
-            image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
+            image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
             if i == 0:
                 if angled:
                     retval = angle_to_river(image)
@@ -122,10 +125,10 @@ def drop_at_river():
                                 angled = False
                         else:
                             print("ang_disp = None ==> no river detected!")
-                            ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+                            ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=5.0)
                     else:
                         print("ang_disp = None ==> no river detected!")
-                        ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+                        ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=5.0)
 
                 elif not at_river:
                     retval = angle_to_river(image)
@@ -136,7 +139,8 @@ def drop_at_river():
                     else:
                         ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
                         break
-            i = (i + 1) % utils.detect_every_n_frames
+            i = (i + 1) % detect_every_n_frames
+
         except KeyboardInterrupt:
             ep_camera.stop_video_stream()
             ep_robot.close()

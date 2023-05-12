@@ -12,15 +12,14 @@ import path_planning
 import detector
 
 lego_goal_x = detector.COLS // 2
-lego_goal_y = 285
-lego_x_threshold = 5
-lego_y_threshold = 5
+lego_goal_y = 480
+lego_x_threshold = 10
 
 detect_every_n_frames = 5
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = -p[0], -p[1], p[2]
+    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
 
 def subtract_start_position(start_position, coords):
     return (coords[0] - start_position[0], coords[1] - start_position[1])
@@ -51,6 +50,7 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
+    ep_arm.moveto(x=189, y=-80).wait_for_completed()
 
     while True:
         try:
@@ -59,22 +59,28 @@ def grab_lego():
                 # Spin to find lego
                 if not found_lego:
                     found_lego = detector.can_see_lego(image)
-                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=5.0)
+                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.1)
 
                 # Spin to center lego
                 elif not centered_with_lego:
-                    lego_x, _ = detector.get_closest_lego_coords(image)
+                    lego_x, lego_y = detector.get_closest_lego_coords(image)
+                    cv2.circle(image, (int(lego_x), int(lego_y)), 5, (255, 255, 255), 5)
                     centered_with_lego = abs(lego_x - lego_goal_x) <= lego_x_threshold
-                    z_speed = (lego_x - lego_goal_x) / 10
-                    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=5.0)
+                    z_speed = (lego_x - lego_goal_x) / 5
+                    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.1)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
-                    lego_x, lego_y = detector.get_lego_coords(image)
-                    in_front_of_lego = abs(lego_y - lego_goal_y) <= lego_y_threshold
-                    x_speed = (lego_goal_y - lego_y) / 200
-                    z_speed = (lego_x - lego_goal_x) / 10
-                    ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
+                    lego_x, lego_y = detector.get_closest_lego_coords(image)
+                    cv2.circle(image, (int(lego_x), int(lego_y)), 5, (255, 255, 255), 5)
+                    print(lego_y)
+                    in_front_of_lego = lego_y <= lego_goal_y
+                    if in_front_of_lego:
+                        ep_chassis.move(x=0.25, y=0, z=0, xy_speed=0.2).wait_for_completed()
+                    else:
+                        x_speed = 0.2
+                        z_speed = (lego_x - lego_goal_x) / 10
+                        ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
 
                 # Squeeze the gripper
                 elif not gripping_lego:
@@ -87,6 +93,14 @@ def grab_lego():
                 # Grabbed lego => return to main loop
                 else:
                     break
+
+                print(f'found_lego: {found_lego}')
+                print(f'centered_with_lego: {centered_with_lego}')
+                print(f'in_front_of_lego: {in_front_of_lego}')
+                print(f'gripping_lego: {gripping_lego}')
+
+                cv2.imshow("image", image)
+                cv2.waitKey(10)
             i = (i + 1) % detect_every_n_frames
 
         except KeyboardInterrupt:
@@ -217,12 +231,12 @@ def mainLoop():
     print('*****')
     time.sleep(3)
 
-    # # Use NN to pick up LEGO
-    # grab_lego()
-    # ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+    # Use NN to pick up LEGO
+    grab_lego()
+    ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
 
-    # # Reverse slightly backward
-    # ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
+    # Reverse slightly backward
+    ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
     while True:
         # Path planning to go from source to river
@@ -261,8 +275,8 @@ def mainLoop():
         print('*****')
         time.sleep(3)
 
-        # # Align to river, move forward, and drop LEGO
-        # drop_at_river()
+        # Align to river, move forward, and drop LEGO
+        drop_at_river()
         # # Send signal to other robot
         # host = "192.168.50.4" # set to IP address of target computer 
         # port = 13000 
@@ -309,12 +323,12 @@ def mainLoop():
         print('*****')
         time.sleep(3)
 
-        # # Use NN to pick up LEGO
-        # grab_lego()
-        # ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+        # Use NN to pick up LEGO
+        grab_lego()
+        ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
 
-        # # Reverse slightly backward
-        # ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
+        # Reverse slightly backward
+        ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
 
 
@@ -351,18 +365,15 @@ def oldmain():
 if __name__ == "__main__":
     # initialization stuff goes here
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
     ep_arm = ep_robot.robotic_arm
+    ep_arm.moveto(x=91, y=-32).wait_for_completed()
     ep_gripper = ep_robot.gripper
 
-    rf = Roboflow(api_key='kKusTXhj0ObVGmi9slHp')
-    project = rf.workspace().project('project2-l7rdy')
-    model = project.version(4).model
-    
     host = ''
     port = 13000 
     buf = 1024 
@@ -375,4 +386,5 @@ if __name__ == "__main__":
     # tMain.start()
     # tObstacles.start()
 
-    mainLoop()
+    # mainLoop()
+    grab_lego()

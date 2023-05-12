@@ -7,7 +7,7 @@ import path_planning
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = -p[0], -p[1], p[2]
+    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
 
 def subtract_start_position(start_position, coords):
     return (coords[0] - start_position[0], coords[1] - start_position[1])

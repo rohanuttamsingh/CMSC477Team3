@@ -37,9 +37,9 @@ def get_closest_lego(image):
     goal_x, goal_y = COLS // 2, ROWS
     distance = lambda lego: np.linalg.norm(np.array([lego['x'] - goal_x, lego['y'] - goal_y]))
     closest = min(legos, key=distance)
-    sorted_legos = sorted(legos, key=distance)
-    print('All:', [(l['x'], l['y'], distance(l)) for l in sorted_legos])
-    print('Closest:', closest['x'], closest['y'], distance(closest))
+    # sorted_legos = sorted(legos, key=distance)
+    # print('All:', [(l['x'], l['y'], distance(l)) for l in sorted_legos])
+    # print('Closest:', closest['x'], closest['y'], distance(closest))
     return closest
 
 def get_closest_lego_coords(image):
@@ -65,7 +65,7 @@ def get_obstacle_offset_from_center(obstacle):
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
 
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     while True:
         try:
             if i % 30 == 0:
-                img = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)   
+                img = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)   
                 legos = detect_legos(img)
                 for lego in legos:
                     x1, x2, y1, y2 = get_corners(lego)
@@ -82,7 +82,7 @@ if __name__ == '__main__':
                     img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=1)
                 closest_lego = get_closest_lego(img)
                 if closest_lego is not None:
-                    x1, x2, y1, y2 = get_corners(lego)
+                    x1, x2, y1, y2 = get_corners(closest_lego)
                     pts = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]).reshape((-1, 1, 2))
                     img = cv2.polylines(img, [pts], isClosed=True, color=(0, 255, 0), thickness=2)
                 img = cv2.line(img, (COLS // 2, 0), (COLS // 2, ROWS), color=(255, 0, 0), thickness=1)

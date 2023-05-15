@@ -59,3 +59,18 @@ def pr_to_path(start, pr):
             break
     path.append(curr)
     return path
+
+def subtract_start_position(start_position, coords):
+    return (coords[0] - start_position[0], coords[1] - start_position[1])
+
+def graph_to_real_coords(coords):
+    real_y, real_x = coords
+    conversion = 0.1524 # 1/2 ft in m
+    real_x *= conversion
+    real_y *= conversion
+    return (real_x, real_y)
+
+def process_path(path, start_position_graph):
+    path = [subtract_start_position(start_position_graph, graph_coords) for graph_coords in path]
+    path = [graph_to_real_coords(graph_coords) for graph_coords in path]
+    return path

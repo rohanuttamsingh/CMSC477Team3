@@ -1,11 +1,13 @@
 import time
 import numpy as np
+import cv2
 from socket import *
 from robomaster import robot
 from robomaster import camera
 import sns
 import threading
 import detector
+import path_planning
 
 """
 
@@ -43,6 +45,34 @@ obstacles = []  # array of tuples denoting the center of all obstacles found
 pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
+
+def controller(next_position):
+    K = [1, 1.2]
+    diff = np.array(next_position) - pos[:2]
+    return K * diff
+
+def distance(position):
+    return np.linalg.norm(np.array(position) - pos[:2])
+
+def velocity_to_avoid_robots(image):
+    velocity = np.zeros(2)
+    robot_x_centers = detector.get_close_robot_x_centers(image)
+    amount = 0.2
+    for x in robot_x_centers:
+        if x < detector.COLS // 3:
+            # Obstacle robot is to the left of this robot
+            # Back and to the right velocity
+            velocity[0] -= amount
+            velocity[1] += amount
+        elif x > 2 * detector.COLS // 3:
+            # Obstacle robot is to the right of this robot
+            # Back and to the left velocity
+            velocity[0] -= amount
+            velocity[1] -= amount
+        else:
+            # Obstacle robot is in front of our robot
+            # Backwards velocity
+            velocity[0] -= amount
 
 def grab_lego():
     i = 0
@@ -171,9 +201,55 @@ def obstacleDetection():
 
 # Main control loop
 def mainLoop():
-    while 1:
-        # Path planning to go near river
+    trajectory_plot = np.zeros((480, 640, 3), dtype=np.uint8)
+    plot_off_x = int(trajectory_plot.shape[1]/2)
+    plot_off_y = int(trajectory_plot.shape[0]/2)
+    plot_scale = 100
 
+    map_ = path_planning.load_map('map_right.csv')
+    graph, _ = path_planning.create_graph(map_)
+    start_position_graph = (1, 1)
+    river_position_graph = (13, 14)
+    dropoff_position_graph = (2, 3)
+
+    # Path planning to go from starting position to river
+    # Just do this once, because after this will go from dropoff zone to river
+    pr = path_planning.bfs_reverse(graph, river_position_graph)
+    path = path_planning.pr_to_path(start_position_graph, pr)
+    path = path_planning.process_path(path, start_position_graph)
+    threshold = 0.1 # 10cm
+
+    print(path)
+    # time.sleep(3)
+
+    i = 0
+    idx = 0
+    threshold = 0.1 # 10cm
+    while idx < len(path):
+        velocities = controller(path[idx])
+        ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+        if i == 0:
+            print(f'position: {pos}')
+            print(f'next point: {path[idx]}')
+            print(f'velocity: {velocities}')
+        i = (i + 1) % 30
+        if distance(path[idx]) < threshold:
+            print(f'')
+            idx += 1
+        cv2.circle(trajectory_plot,
+                    (int(plot_scale * pos[0] + plot_off_x),
+                    int(plot_scale * pos[1] + plot_off_y)),
+                    1, (0,0,255), 1)
+        cv2.imshow('Trajectory plot', trajectory_plot)
+        cv2.waitKey(1)
+
+    ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+    print('*****')
+    print('Made it to river')
+    print('*****')
+    time.sleep(3)
+
+    while 1:
         # Check if any LEGOs waiting for pickup
         while legos_waiting == 0:
             # none dropped off atm - idle while waiting for signal
@@ -182,7 +258,42 @@ def mainLoop():
         ep_arm.moveto(x=208, y=-69).wait_for_completed()
         grab_lego()
         ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
-        # Path planning to dropoff point
+
+        # Path planning to go from river to dropoff position
+        pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
+        path = path_planning.pr_to_path(river_position_graph, pr)
+        path = path_planning.process_path(path, dropoff_position_graph)
+        threshold = 0.1 # 10cm
+
+        print(path)
+        # time.sleep(3)
+
+        i = 0
+        idx = 0
+        threshold = 0.1 # 10cm
+        while idx < len(path):
+            velocities = controller(path[idx])
+            ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+            if i == 0:
+                print(f'position: {pos}')
+                print(f'next point: {path[idx]}')
+                print(f'velocity: {velocities}')
+            i = (i + 1) % 30
+            if distance(path[idx]) < threshold:
+                print(f'')
+                idx += 1
+            cv2.circle(trajectory_plot,
+                        (int(plot_scale * pos[0] + plot_off_x),
+                        int(plot_scale * pos[1] + plot_off_y)),
+                        1, (0,0,255), 1)
+            cv2.imshow('Trajectory plot', trajectory_plot)
+            cv2.waitKey(1)
+
+        ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+        print('*****')
+        print('Made it to dropoff position')
+        print('*****')
+        time.sleep(3)
 
         # Orient to face dropzone and move forward if necessary
 
@@ -194,6 +305,42 @@ def mainLoop():
         legos_waiting = legos_waiting - 1
         # Retract arm, return to starting position/orientation and loop
         ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+
+        # Path planning to go from dropoff position to river
+        pr = path_planning.bfs_reverse(graph, river_position_graph)
+        path = path_planning.pr_to_path(dropoff_position_graph, pr)
+        path = path_planning.process_path(path, dropoff_position_graph)
+        threshold = 0.1 # 10cm
+
+        print(path)
+        # time.sleep(3)
+
+        i = 0
+        idx = 0
+        threshold = 0.1 # 10cm
+        while idx < len(path):
+            velocities = controller(path[idx])
+            ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+            if i == 0:
+                print(f'position: {pos}')
+                print(f'next point: {path[idx]}')
+                print(f'velocity: {velocities}')
+            i = (i + 1) % 30
+            if distance(path[idx]) < threshold:
+                print(f'')
+                idx += 1
+            cv2.circle(trajectory_plot,
+                        (int(plot_scale * pos[0] + plot_off_x),
+                        int(plot_scale * pos[1] + plot_off_y)),
+                        1, (0,0,255), 1)
+            cv2.imshow('Trajectory plot', trajectory_plot)
+            cv2.waitKey(1)
+
+        ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+        print('*****')
+        print('Made it to river')
+        print('*****')
+        time.sleep(3)
         # Loop!
 
 
@@ -203,7 +350,7 @@ if __name__ == "__main__":
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
     ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
+    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
     ep_arm = ep_robot.robotic_arm

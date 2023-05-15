@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import cv2
 from socket import *
 from robomaster import robot
 from robomaster import camera
@@ -9,7 +10,6 @@ import threading
 import detector
 import path_planning
 import detector
-import cv2
 from roboflow import Roboflow
 
 lego_goal_x = detector.COLS // 2
@@ -21,21 +21,6 @@ detect_every_n_frames = 5
 pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
-
-def subtract_start_position(start_position, coords):
-    return (coords[0] - start_position[0], coords[1] - start_position[1])
-
-def graph_to_real_coords(coords):
-    real_y, real_x = coords
-    conversion = 0.1524 # 1/2 ft in m
-    real_x *= conversion
-    real_y *= conversion
-    return (real_x, real_y)
-
-def process_path(path, start_position_graph):
-    path = [subtract_start_position(start_position_graph, graph_coords) for graph_coords in path]
-    path = [graph_to_real_coords(graph_coords) for graph_coords in path]
-    return path
 
 def controller(next_position):
     K = [1, 1.2]
@@ -217,7 +202,6 @@ def mainLoop():
     trajectory_plot = np.zeros((480, 640, 3), dtype=np.uint8)
     plot_off_x = int(trajectory_plot.shape[1]/2)
     plot_off_y = int(trajectory_plot.shape[0]/2)
-    # Each pixel in the plot is 1 ft / plot_scale
     plot_scale = 100
 
     map_ = path_planning.load_map('map_left.csv')
@@ -230,7 +214,7 @@ def mainLoop():
     # Just do this once, because after this will go from river to lego source
     pr = path_planning.bfs_reverse(graph, source_position_graph)
     path = path_planning.pr_to_path(start_position_graph, pr)
-    path = process_path(path, start_position_graph)
+    path = path_planning.process_path(path, start_position_graph)
     threshold = 0.1 # 10cm
 
     print(path)
@@ -259,7 +243,7 @@ def mainLoop():
 
     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
     print('*****')
-    print('Made it to lego source')
+    print('Made it to river')
     print('*****')
     time.sleep(3)
 
@@ -274,7 +258,7 @@ def mainLoop():
         # Path planning to go from source to river
         pr = path_planning.bfs_reverse(graph, river_position_graph)
         path = path_planning.pr_to_path(source_position_graph, pr)
-        path = process_path(path, source_position_graph)
+        path = path_planning.process_path(path, source_position_graph)
         threshold = 0.1 # 10cm
 
         print(path)
@@ -322,7 +306,7 @@ def mainLoop():
         # Path planning to go from river to lego source
         pr = path_planning.bfs_reverse(graph, source_position_graph)
         path = path_planning.pr_to_path(river_position_graph, pr)
-        path = process_path(path, river_position_graph)
+        path = path_planning.process_path(path, river_position_graph)
         threshold = 0.1 # 10cm
 
         print(path)

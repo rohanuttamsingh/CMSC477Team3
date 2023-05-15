@@ -15,8 +15,8 @@ lego_detector = lego_detector_project.version(1).model
 nav_detector_project = rf.workspace().project('navdetector')
 nav_detector = nav_detector_project.version(1).model
 
-def detect(model, image):
-    return model.predict(image, confidence=40, overlap=30).json()['predictions']
+def detect(model, image, confidence=40):
+    return model.predict(image, confidence=confidence, overlap=30).json()['predictions']
 
 def detect_legos(image):
     return detect(lego_detector, image)
@@ -53,11 +53,11 @@ def get_corners(o):
     y2 = round(o['y'] + o['height'] / 2)
     return x1, x2, y1, y2
 
-def get_objects(model, cls, image):
-    return list(filter(lambda o: o['class'] == cls, detect(model, image)))
+def get_objects(model, cls, image, confidence=40):
+    return list(filter(lambda o: o['class'] == cls, detect(model, image, confidence=confidence)))
 
 def get_obstacles(image):
-    return get_objects(nav_detector, 'obstacle', image)
+    return get_objects(nav_detector, 'obstacle', image, confidence=1) # Model sucks at detecting obstacles
 
 def get_obstacle_offset_from_center(obstacle):
     """Returns (x distance from center of object to center of camera frame,
@@ -138,6 +138,27 @@ def test_robot_detector():
             print('Exiting')
             exit(1)
 
+def test_obstacle_detector():
+    i = 0
+    while True:
+        try:
+            if i % 30 == 0:
+                img = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
+                obstacles = get_obstacles(img)
+                for obstacle in obstacles:
+                    x1, x2, y1, y2 = get_corners(obstacle)
+                    pts = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]).reshape((-1, 1, 2))
+                    img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=1)
+                cv2.imshow("img", img)
+                cv2.waitKey(10)
+            i = (i + 1) % 30
+
+        except KeyboardInterrupt:
+            ep_camera.stop_video_stream()
+            ep_robot.close()
+            print('Exiting')
+            exit(1)
+
 if __name__ == '__main__':
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
@@ -145,4 +166,5 @@ if __name__ == '__main__':
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
 
     # test_lego_detector()
-    test_robot_detector()
+    # test_robot_detector()
+    test_obstacle_detector()

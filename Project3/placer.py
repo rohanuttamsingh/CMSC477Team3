@@ -47,7 +47,8 @@ def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
 
 def controller(next_position):
-    K = [1, 1.2]
+    # K = [1, 1.2]
+    K = [0.5, 0.6]
     diff = np.array(next_position) - pos[:2]
     return K * diff
 
@@ -88,14 +89,14 @@ def grab_lego():
                 # Spin to find lego
                 if not found_lego:
                     found_lego = detector.can_see_lego(image)
-                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.5)
+                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.1)
 
                 # Spin to center lego
                 elif not centered_with_lego:
                     lego_x, _ =  detector.get_closest_lego_coords(image)
                     centered_with_lego = goal_x - threshold <= lego_x <= goal_x + threshold
                     z_speed = (lego_x - goal_x) / 10
-                    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.5)
+                    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.1)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
@@ -348,7 +349,7 @@ if __name__ == "__main__":
     # --- PROGRAM STARTUP ---
     # initialization stuff goes here
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis

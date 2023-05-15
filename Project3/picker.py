@@ -10,7 +10,6 @@ import threading
 import detector
 import path_planning
 import detector
-from roboflow import Roboflow
 
 lego_goal_x = detector.COLS // 2
 lego_goal_y = 480
@@ -243,7 +242,7 @@ def mainLoop():
 
     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
     print('*****')
-    print('Made it to river')
+    print('Made it to lego source')
     print('*****')
     time.sleep(3)
 
@@ -377,7 +376,7 @@ def mainLoop():
 if __name__ == "__main__":
     # initialization stuff goes here
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
@@ -387,13 +386,12 @@ if __name__ == "__main__":
     ep_gripper = ep_robot.gripper
 
 
-    host = ''
+    host = '192.168.50.220'
     port = 13000 
     buf = 1024 
     addr = (host, port) 
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
-    UDPSock.bind(addr) 
-                    
+
     # tMain = threading.Thread(target=mainLoop)
     # tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
     # tMain.start()

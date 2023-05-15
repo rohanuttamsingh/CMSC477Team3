@@ -37,6 +37,11 @@ goal_y = 350
 
 legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
+map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
+
+x_robot = 0
+y_robot = 0
+z_robot = 0
 
 def grab_lego():
     i = 0
@@ -47,7 +52,7 @@ def grab_lego():
 
     while True:
         try:
-            image = ep_camera.read_cv2_image(strategy='newest', timeout=0.5)
+            image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
             if i == 0:
                 # Spin to find lego
                 if not found_lego:
@@ -100,6 +105,35 @@ def signalListener():
 
 # TODO
 def obstacleDetection():
+    while True:
+        f = 184.752*1.7                                             # focal length IN PIXELS
+        theta = np.radians(61.45)
+        image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
+        obstacles = detector.get_obstacles(image)
+        for obstacle in obstacles:
+            # do all of the below for each obstacle
+            (x,y) = detector.get_obstacle_offset_from_center(obstacle)
+            phi = -np.arctan(y / f) # inverting because y > 0 means edge is BELOW center in img frame
+            d = 5 + 32.5 * np.tan(theta + phi)                      # cm
+            psi = np.arctan(x / f)
+            a = d * np.tan(psi)                                     # cm
+            # convert (d,a) from robot frame to world frame,
+            Rrw = np.array([[np.cos(np.radians(z_robot)), -np.sin(np.radians(z_robot))],
+                            [np.sin(np.radians(z_robot)), np.cos(np.radians(z_robot))]])
+            p_robot = np.array([[x_robot, y_robot]])
+            da_vec = np.array([[d], [a]]) / 100
+            p_obs = (Rrw@da_vec) + p_robot                          # world coords of obstacle
+            map_obs = (round(p_obs[1] / 0.1524), round(p_obs[0] / 0.1524))        # gets nearest map index to obstacle
+            # overcompensate by making obstacle occupy 3x3 space in map
+            # TODO check if this would overlap w/ existing obstacles and delete those before adding
+            for i in range(-1,2):
+                for j in range(-1,2):
+                    map[map_obs[0]+i][map_obs[1]+j] = 7
+
+
+            # TODO updating obstacle positions?
+            # then add to map!
+            
     # ML gives position of box -> find center point of its bottom edge
     # and designate that point's location as (x,y), where:
     #   - x = horizontal location in image
@@ -123,9 +157,7 @@ def obstacleDetection():
     # and w_ip = 2*f*tan(37.69) = metric width of image plane
 
     # Thus, have location of obstacle as (d,a) in robot frame
-    # => convert to world frame, and add to map! 
-
-    pass
+    # => convert to world frame, and add to map!
 
 
 # Main control loop

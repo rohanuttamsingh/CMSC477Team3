@@ -47,7 +47,7 @@ def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
 
 def controller(next_position):
-    K = [1, 1.2]
+    K = [0.5, 0.6]
     diff = np.array(next_position) - pos[:2]
     return K * diff
 
@@ -220,7 +220,7 @@ def mainLoop():
     threshold = 0.1 # 10cm
 
     print(path)
-    # time.sleep(3)
+    time.sleep(3)
 
     i = 0
     idx = 0
@@ -348,7 +348,7 @@ if __name__ == "__main__":
     # --- PROGRAM STARTUP ---
     # initialization stuff goes here
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
@@ -363,10 +363,12 @@ if __name__ == "__main__":
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
     UDPSock.bind(addr) 
                     
-    tMain = threading.Thread(target=mainLoop)
-    tListener = threading.Thread(target=signalListener)
+    #tMain = threading.Thread(target=mainLoop)
+    #tListener = threading.Thread(target=signalListener)
     tObstacles = threading.Thread(target=obstacleDetection)
     # add third thread for obstacle detector
-    tMain.start()
-    tListener.start()
+    #tMain.start()
+    #tListener.start()
     tObstacles.start()
+    while True:
+        print((map == 7).sum())

@@ -53,8 +53,11 @@ def get_corners(o):
     y2 = round(o['y'] + o['height'] / 2)
     return x1, x2, y1, y2
 
+def get_objects(model, cls, image):
+    return list(filter(lambda o: o['class'] == cls, detect(model, image)))
+
 def get_obstacles(image):
-    return list(filter(lambda o: o['class'] == 'obstacle', detect(nav_detector, image)))
+    return get_objects(nav_detector, 'obstacle', image)
 
 def get_obstacle_offset_from_center(obstacle):
     """Returns (x distance from center of object to center of camera frame,
@@ -63,14 +66,30 @@ def get_obstacle_offset_from_center(obstacle):
     y = (obstacle['y'] + obstacle['height'] / 2) - ROWS // 2
     return x, y
 
-if __name__ == '__main__':
-    ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
-    ep_camera = ep_robot.camera
-    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
+def get_robots(image):
+    return get_objects(nav_detector, 'robot', image)
 
+def get_distance_to_robot(robot):
+    """Determine distance to robot based on its pixel height."""
+    y = robot['height'] # cm
+    Y = 30 # cm
+    f = 184.752*1.7 # pixels
+    Z = f * Y / y
+    D = np.sqrt(abs(Z**2 - Y**2)) # distance to robot
+    scale = 3 # derived through experimentation, accounts for inaccuracies
+    return D * scale
+
+def get_close_robot_x_centers(image):
+    close = 20 # cm
+    robots = get_robots(image)
+    centers = []
+    for robot in robots:
+        if get_distance_to_robot(robot) < close:
+            centers.append(robot['x'])
+    return centers
+
+def test_lego_detector():
     i = 0
-
     while True:
         try:
             if i % 30 == 0:
@@ -94,5 +113,36 @@ if __name__ == '__main__':
         except KeyboardInterrupt:
             ep_camera.stop_video_stream()
             ep_robot.close()
-            print ('Exiting')
+            print('Exiting')
             exit(1)
+
+def test_robot_detector():
+    i = 0
+    while True:
+        try:
+            if i % 30 == 0:
+                img = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
+                robots = get_robots(img)
+                for robot in robots:
+                    x1, x2, y1, y2 = get_corners(robot)
+                    pts = np.array([[x1, y1], [x2, y1], [x2, y2], [x1, y2]]).reshape((-1, 1, 2))
+                    img = cv2.polylines(img, [pts], isClosed=True, color=(0, 0, 255), thickness=1)
+                    print(get_distance_to_robot(robot))
+                cv2.imshow("img", img)
+                cv2.waitKey(10)
+            i = (i + 1) % 30
+
+        except KeyboardInterrupt:
+            ep_camera.stop_video_stream()
+            ep_robot.close()
+            print('Exiting')
+            exit(1)
+
+if __name__ == '__main__':
+    ep_robot = robot.Robot()
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
+    ep_camera = ep_robot.camera
+    ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
+
+    # test_lego_detector()
+    test_robot_detector()

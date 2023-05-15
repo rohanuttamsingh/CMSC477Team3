@@ -44,6 +44,26 @@ def controller(next_position):
 def distance(position):
     return np.linalg.norm(np.array(position) - pos[:2])
 
+def velocity_to_avoid_robots(image):
+    velocity = np.zeros(2)
+    robot_x_centers = detector.get_close_robot_x_centers(image)
+    amount = 0.2
+    for x in robot_x_centers:
+        if x < detector.COLS // 3:
+            # Obstacle robot is to the left of this robot
+            # Back and to the right velocity
+            velocity[0] -= amount
+            velocity[1] += amount
+        elif x > 2 * detector.COLS // 3:
+            # Obstacle robot is to the right of this robot
+            # Back and to the left velocity
+            velocity[0] -= amount
+            velocity[1] -= amount
+        else:
+            # Obstacle robot is in front of our robot
+            # Backwards velocity
+            velocity[0] -= amount
+
 def grab_lego():
     i = 0
     found_lego = False

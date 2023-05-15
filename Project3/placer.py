@@ -209,7 +209,7 @@ def mainLoop():
     map_ = path_planning.load_map('map_right.csv')
     graph, _ = path_planning.create_graph(map_)
     start_position_graph = (1, 1)
-    river_position_graph = (13, 14)
+    river_position_graph = (13, 12)
     dropoff_position_graph = (2, 3)
 
     # Path planning to go from starting position to river
@@ -257,12 +257,12 @@ def mainLoop():
         # NN picks up LEGO
         ep_arm.moveto(x=208, y=-69).wait_for_completed()
         grab_lego()
-        ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+        ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
         # Path planning to go from river to dropoff position
         pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
         path = path_planning.pr_to_path(river_position_graph, pr)
-        path = path_planning.process_path(path, dropoff_position_graph)
+        path = path_planning.process_path(path, start_position_graph)
         threshold = 0.1 # 10cm
 
         print(path)
@@ -298,18 +298,18 @@ def mainLoop():
         # Orient to face dropzone and move forward if necessary
 
         # Extend arm and release
-        ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+        ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
         ep_gripper.open(power=50)
         time.sleep(3)
         ep_gripper.pause()
         legos_waiting = legos_waiting - 1
         # Retract arm, return to starting position/orientation and loop
-        ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+        ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
         # Path planning to go from dropoff position to river
         pr = path_planning.bfs_reverse(graph, river_position_graph)
         path = path_planning.pr_to_path(dropoff_position_graph, pr)
-        path = path_planning.process_path(path, dropoff_position_graph)
+        path = path_planning.process_path(path, start_position_graph)
         threshold = 0.1 # 10cm
 
         print(path)

@@ -74,3 +74,10 @@ def process_path(path, start_position_graph):
     path = [subtract_start_position(start_position_graph, graph_coords) for graph_coords in path]
     path = [graph_to_real_coords(graph_coords) for graph_coords in path]
     return path
+
+def real_to_graph_coords(coords):
+    graph_y, graph_x = coords
+    conversion = 1 / 0.1524
+    graph_x *= conversion
+    graph_y *= conversion
+    return (round(graph_x), round(graph_y))

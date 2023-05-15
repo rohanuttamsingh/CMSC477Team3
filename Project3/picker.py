@@ -13,13 +13,13 @@ import detector
 
 lego_goal_x = detector.COLS // 2
 lego_goal_y = 480
-lego_x_threshold = 10
+lego_x_threshold = 15
 
 detect_every_n_frames = 5
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
+    pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
 def controller(next_position):
     K = [1, 1.2]
@@ -55,7 +55,7 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
-    ep_arm.moveto(x=189, y=-80).wait_for_completed()
+    ep_arm.moveto(x=180, y=-90).wait_for_completed()
 
     while True:
         try:
@@ -81,7 +81,7 @@ def grab_lego():
                     print(lego_y)
                     in_front_of_lego = lego_y <= lego_goal_y
                     if in_front_of_lego:
-                        ep_chassis.move(x=0.25, y=0, z=0, xy_speed=0.2).wait_for_completed()
+                        ep_chassis.move(x=0.05, y=0, z=0, xy_speed=0.1).wait_for_completed()
                     else:
                         x_speed = 0.2
                         z_speed = (lego_x - lego_goal_x) / 10
@@ -177,7 +177,7 @@ def drop_at_river():
     time.sleep(3)
     ep_gripper.pause()
     # return arm to transit position and move backward
-    ep_arm.moveto(x=91, y=-32).wait_for_completed()
+    ep_arm.moveto(x=86, y=-22).wait_for_completed()
     ep_chassis.move(x=-0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
     return
 
@@ -205,8 +205,8 @@ def mainLoop():
 
     map_ = path_planning.load_map('map_left.csv')
     graph, _ = path_planning.create_graph(map_)
-    source_position_graph = (13, 4)
-    river_position_graph = (13, 14)
+    source_position_graph = (14, 1)
+    river_position_graph = (14, 11)
     start_position_graph = (1, 1)
 
     # Path planning to go from starting position to lego source
@@ -248,16 +248,54 @@ def mainLoop():
 
     # Use NN to pick up LEGO
     grab_lego()
-    ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+    ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
-    # Reverse slightly backward
-    ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
+    # Move to source position
+    # pr = path_planning.bfs_reverse(graph, source_position_graph)
+    # current_position = path_planning.real_to_graph_coords((pos[0], pos[1]))
+    # path = path_planning.pr_to_path(current_position, pr)
+    # path = path_planning.process_path(path, start_position_graph)
+    # threshold = 0.1 # 10cm
+
+    # print(path)
+
+    # i = 0
+    # idx = 0
+    # threshold = 0.1 # 10cm
+    # while idx < len(path):
+    #     velocities = controller(path[idx])
+    #     ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
+    #     if i == 0:
+    #         print(f'position: {pos}')
+    #         print(f'next point: {path[idx]}')
+    #         print(f'velocity: {velocities}')
+    #     i = (i + 1) % 30
+    #     if distance(path[idx]) < threshold:
+    #         print(f'')
+    #         idx += 1
+    #     cv2.circle(trajectory_plot,
+    #                 (int(plot_scale * pos[0] + plot_off_x),
+    #                 int(plot_scale * pos[1] + plot_off_y)),
+    #                 1, (0,0,255), 1)
+    #     cv2.imshow('Trajectory plot', trajectory_plot)
+    #     cv2.waitKey(1)
+
+    #     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+    #     print('*****')
+    #     print('Made it back to lego source')
+    #     print('*****')
+    #     time.sleep(3)
+
+    # TODO: Make pos[2] 0 to make robot straight
+    ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
     while True:
         # Path planning to go from source to river
+        # current_position_graph = path_planning.real_to_graph_coords((pos[0], pos[1]))
+        current_position_graph = source_position_graph
         pr = path_planning.bfs_reverse(graph, river_position_graph)
-        path = path_planning.pr_to_path(source_position_graph, pr)
-        path = path_planning.process_path(path, source_position_graph)
+        path = path_planning.pr_to_path(current_position_graph, pr)
+        path = path_planning.process_path(path, start_position_graph)
         threshold = 0.1 # 10cm
 
         print(path)
@@ -303,9 +341,11 @@ def mainLoop():
         # # Loop!
 
         # Path planning to go from river to lego source
+        # TODO: Update river position graph to be current position
+        # These won't be the same because dropping off the lego impacts our position
         pr = path_planning.bfs_reverse(graph, source_position_graph)
         path = path_planning.pr_to_path(river_position_graph, pr)
-        path = path_planning.process_path(path, river_position_graph)
+        path = path_planning.process_path(path, start_position_graph)
         threshold = 0.1 # 10cm
 
         print(path)
@@ -340,10 +380,10 @@ def mainLoop():
 
         # Use NN to pick up LEGO
         grab_lego()
-        ep_arm.moveto(x=91, y=-32).wait_for_completed() # move arm to transit position
+        ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
         # Reverse slightly backward
-        ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
+        ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
     # Loop:
     #   Picker starts at starting location
@@ -382,7 +422,7 @@ if __name__ == "__main__":
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
     ep_arm = ep_robot.robotic_arm
-    ep_arm.moveto(x=91, y=-32).wait_for_completed()
+    ep_arm.moveto(x=86, y=-22).wait_for_completed()
     ep_gripper = ep_robot.gripper
 
 
@@ -397,5 +437,5 @@ if __name__ == "__main__":
     # tMain.start()
     # tObstacles.start()
 
-    # mainLoop()
-    grab_lego()
+    mainLoop()
+    # grab_lego()

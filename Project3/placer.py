@@ -4,7 +4,6 @@ from socket import *
 from robomaster import robot
 from robomaster import camera
 import sns
-import utils
 import threading
 import detector
 
@@ -32,16 +31,18 @@ NOTE 3: cannot use april tags to check robot orientation - must keep track of it
 
 """
 
-goal_x = utils.image_width // 2
+goal_x = 1280 // 2
 goal_y = 350
+threshold = 5
 
 legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
 map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
+obstacles = []  # array of tuples denoting the center of all obstacles found
 
-x_robot = 0
-y_robot = 0
-z_robot = 0
+pos = np.zeros((3,))
+def sub_position_handler(p):
+    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
 
 def grab_lego():
     i = 0
@@ -62,14 +63,14 @@ def grab_lego():
                 # Spin to center lego
                 elif not centered_with_lego:
                     lego_x, _ =  detector.get_closest_lego_coords(image)
-                    centered_with_lego = goal_x - utils.threshold <= lego_x <= goal_x + utils.threshold
+                    centered_with_lego = goal_x - threshold <= lego_x <= goal_x + threshold
                     z_speed = (lego_x - goal_x) / 10
                     ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.5)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
                     lego_x, lego_y = detector.get_closest_lego_coords(image)
-                    in_front_of_lego = goal_y - utils.threshold <= lego_y <= goal_y + utils.threshold
+                    in_front_of_lego = goal_y - threshold <= lego_y <= goal_y + threshold
                     x_speed = (goal_y - lego_y) / 200
                     z_speed = (lego_x - goal_x) / 10
                     ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
@@ -85,7 +86,7 @@ def grab_lego():
                 # Grabbed lego => return to main loop
                 else:
                     return
-            i = (i + 1) % utils.detect_every_n_frames
+            i = (i + 1) % 5  # only run on every n = 5 frames
         except KeyboardInterrupt:
             ep_camera.stop_video_stream()
             ep_robot.close()
@@ -103,6 +104,17 @@ def signalListener():
             legos_waiting = legos_waiting + 1
 
 
+# Removes an old obstacle entry from the map if it's close enough to new one
+# => assuming that means the previous obstacle was somehow moved to this
+# current position
+def clearObstacle(r, c):
+    for (ro, co) in obstacles:
+        if abs(ro-r) <= 2 and abs(co-c) <= 2:
+            for i in range(-1,2):
+                for j in range(-1,2):
+                    map[ro+i][co+j] = 0
+
+
 # TODO
 def obstacleDetection():
     while True:
@@ -118,20 +130,17 @@ def obstacleDetection():
             psi = np.arctan(x / f)
             a = d * np.tan(psi)                                     # cm
             # convert (d,a) from robot frame to world frame,
-            Rrw = np.array([[np.cos(np.radians(z_robot)), -np.sin(np.radians(z_robot))],
-                            [np.sin(np.radians(z_robot)), np.cos(np.radians(z_robot))]])
-            p_robot = np.array([[x_robot, y_robot]])
+            Rrw = np.array([[np.cos(np.radians(pos[2])), -np.sin(np.radians(pos[2]))],
+                            [np.sin(np.radians(pos[2])),  np.cos(np.radians(pos[2]))]])
+            p_robot = np.array([[pos[0], pos[1]]])
             da_vec = np.array([[d], [a]]) / 100
             p_obs = (Rrw@da_vec) + p_robot                          # world coords of obstacle
             map_obs = (round(p_obs[1] / 0.1524), round(p_obs[0] / 0.1524))        # gets nearest map index to obstacle
             # overcompensate by making obstacle occupy 3x3 space in map
-            # TODO check if this would overlap w/ existing obstacles and delete those before adding
+            clearObstacle(map_obs[0], map_obs[1])
             for i in range(-1,2):
                 for j in range(-1,2):
                     map[map_obs[0]+i][map_obs[1]+j] = 7
-
-
-            # TODO updating obstacle positions?
             # then add to map!
             
     # ML gives position of box -> find center point of its bottom edge
@@ -196,6 +205,7 @@ if __name__ == "__main__":
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_360P)
     ep_chassis = ep_robot.chassis
+    ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
     

@@ -59,21 +59,3 @@ def pr_to_path(start, pr):
             break
     path.append(curr)
     return path
-
-def scale_path(path):
-    """Given a path, scales the points to feet scale and changes the starting
-    point to (0, 0)."""
-    unit = 0.5 # 0.5 feet
-    # swapped_path = [(y, x) for x, y in path]
-    # start_x, start_y = swapped_path[0]
-    start_x, start_y = path[0]
-    zero_start_path = [(x - start_x, y - start_y) for x, y in path]
-    scaled_path = [(x * unit, y * unit) for x, y in zero_start_path]
-    return scaled_path
-
-def get_start_position(map_):
-    """Given a numpy array representing a map, gets the starting position of
-    the robot (represented by a 3)."""
-    raw_start_position = np.where(map_ == 3)
-    start_position = (raw_start_position[0][0], raw_start_position[1][0])
-    return start_position

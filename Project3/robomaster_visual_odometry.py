@@ -113,7 +113,7 @@ if __name__ == '__main__':
     frame_undistorted_gray_old = None
 
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
     ep_robot.chassis.sub_position(freq=50, callback=lambda p: sub_position_handler(p, x_new))
     ep_camera = ep_robot.camera
     ep_camera.start_video_stream(display=False)

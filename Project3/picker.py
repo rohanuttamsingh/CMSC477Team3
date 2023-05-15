@@ -1,15 +1,16 @@
 import time
-import cv2
 import numpy as np
 from socket import *
 from robomaster import robot
 from robomaster import camera
-from roboflow import Roboflow
 import sns
 from river import angle_to_river
 import threading
+import detector
 import path_planning
 import detector
+import cv2
+from roboflow import Roboflow
 
 lego_goal_x = detector.COLS // 2
 lego_goal_y = 480
@@ -109,6 +110,7 @@ def grab_lego():
                     ep_gripper.pause()
                     ep_arm.move(x=0, y=60).wait_for_completed()
                     gripping_lego = True
+                    return
                 
                 # Grabbed lego => return to main loop
                 else:
@@ -196,9 +198,19 @@ def drop_at_river():
     return
 
 
-# Listens for signals from the picker that a LEGO has been dropped off, and
-# increments the value of legos_waiting correspondingly
+# Looks for obstacles and adds them to the map
 def obstacleDetection():
+    # assume we have some function that returns phi and psi, where
+    #   - phi = vertical angular offset from camera axis
+    #   - psi = horizontal angular offset from camera axis
+    # then, in camera frame, we can calculate:
+    #   - depth from robot is d = 32.5tan(phi + theta)
+    #   - horizontal displacement is a = d*tan(psi)
+    # => box is at (d,a) in camera frame
+    # camera is located in front of robot center
+    # => to get to robot frame, add 5 cm to d
+    # => box is at (d+5,a) in robot frame
+    # => convert to world coordinates before adding to map
     pass
 
 def mainLoop():
@@ -350,9 +362,6 @@ def mainLoop():
         # Reverse slightly backward
         ep_chassis.move(x=-0.5, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
-
-
-def oldmain():
     # Loop:
     #   Picker starts at starting location
     #   Move to LEGO source zone
@@ -379,7 +388,6 @@ def oldmain():
     # adding to the map then recalculating Dijkstra's as needed; for the other
     # robot, we have options: either stop and wait for it to leave frame, or
     # attempt to maneuever around it
-    pass
 
 
 if __name__ == "__main__":
@@ -393,6 +401,7 @@ if __name__ == "__main__":
     ep_arm = ep_robot.robotic_arm
     ep_arm.moveto(x=91, y=-32).wait_for_completed()
     ep_gripper = ep_robot.gripper
+
 
     host = ''
     port = 13000 

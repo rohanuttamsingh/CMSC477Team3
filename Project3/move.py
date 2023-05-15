@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import time
 from robomaster import robot
 
 import sns
@@ -49,11 +50,12 @@ if __name__ == '__main__':
     graph, _ = path_planning.create_graph(map_)
     # Graph coords
     start_position_graph = (1, 1) # Left corner
-    goal_position_graph = (13, 14) # River
+    goal_position_graph = (5, 5) # River
     pr = path_planning.bfs_reverse(graph, goal_position_graph)
     path = path_planning.pr_to_path(start_position_graph, pr)
     path = process_path(path, start_position_graph)
     print(path)
+    # time.sleep(10)
 
     i = 0
     idx = 0
@@ -73,11 +75,11 @@ if __name__ == '__main__':
     #                 (int(plot_scale * pos[0] + plot_off_x),
     #                 int(plot_scale * pos[1] + plot_off_y)),
     #                 1, (0,0,255), 1)
-    #     cv2.imshow('trajectory plot', trajectory_plot)
-    #     cv2.waitkey(1)
+    #     cv2.imshow('Trajectory plot', trajectory_plot)
+    #     cv2.waitKey(1)
 
     while True:
-        ep_chassis.drive_speed(x=-0.1, y=-0.2, z=0, timeout=0.1)
+        ep_chassis.drive_speed(x=0.0, y=0.2, z=0, timeout=0.1)
         if i == 0:
             print(f'position: {pos}')
         i = (i + 1) % 30

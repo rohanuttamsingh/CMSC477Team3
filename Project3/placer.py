@@ -80,6 +80,7 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
+    ep_arm.moveto(x=180, y=-90).wait_for_completed()
 
     while True:
         try:
@@ -255,7 +256,6 @@ def mainLoop():
             # none dropped off atm - idle while waiting for signal
             pass
         # NN picks up LEGO
-        ep_arm.moveto(x=208, y=-69).wait_for_completed()
         grab_lego()
         ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 

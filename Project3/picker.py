@@ -21,6 +21,10 @@ pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
+att = np.zeros((3,)) # Yaw, pitch, roll
+def sub_attitude_handler(a):
+    att[0], att[1], att[2] = a[0], a[1], a[2]
+
 def controller(next_position):
     K = [1, 1.2]
     diff = np.array(next_position) - pos[:2]
@@ -197,6 +201,14 @@ def obstacleDetection():
     # => convert to world coordinates before adding to map
     pass
 
+def straighten_bot():
+    K = 2
+    threshold = 5
+    print(att[0])
+    while abs(att[0]) > threshold:
+        ep_chassis.drive_speed(x=0, y=0, z=-K*att[0], timeout=0.1)
+    ep_chassis.drive_speed(x=0, y=0, z=0)
+
 def mainLoop():
     trajectory_plot = np.zeros((480, 640, 3), dtype=np.uint8)
     plot_off_x = int(trajectory_plot.shape[1]/2)
@@ -250,43 +262,9 @@ def mainLoop():
     grab_lego()
     ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
-    # Move to source position
-    # pr = path_planning.bfs_reverse(graph, source_position_graph)
-    # current_position = path_planning.real_to_graph_coords((pos[0], pos[1]))
-    # path = path_planning.pr_to_path(current_position, pr)
-    # path = path_planning.process_path(path, start_position_graph)
-    # threshold = 0.1 # 10cm
-
-    # print(path)
-
-    # i = 0
-    # idx = 0
-    # threshold = 0.1 # 10cm
-    # while idx < len(path):
-    #     velocities = controller(path[idx])
-    #     ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
-    #     if i == 0:
-    #         print(f'position: {pos}')
-    #         print(f'next point: {path[idx]}')
-    #         print(f'velocity: {velocities}')
-    #     i = (i + 1) % 30
-    #     if distance(path[idx]) < threshold:
-    #         print(f'')
-    #         idx += 1
-    #     cv2.circle(trajectory_plot,
-    #                 (int(plot_scale * pos[0] + plot_off_x),
-    #                 int(plot_scale * pos[1] + plot_off_y)),
-    #                 1, (0,0,255), 1)
-    #     cv2.imshow('Trajectory plot', trajectory_plot)
-    #     cv2.waitKey(1)
-
-    #     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
-    #     print('*****')
-    #     print('Made it back to lego source')
-    #     print('*****')
-    #     time.sleep(3)
-
-    # TODO: Make pos[2] 0 to make robot straight
+    # Straighten robot
+    # straighten_bot()
+    # Move slightly backwards
     ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
     while True:
@@ -339,6 +317,8 @@ def mainLoop():
         # UDPSock.sendto(data.encode(), addr) 
         # UDPSock.close()
         # # Loop!
+
+        # straighten_bot()
 
         # Path planning to go from river to lego source
         # TODO: Update river position graph to be current position
@@ -412,6 +392,16 @@ def mainLoop():
     # robot, we have options: either stop and wait for it to leave frame, or
     # attempt to maneuever around it
 
+def test_straighten_bot():
+    # ep_chassis.move(x=0, y=0, z=45).wait_for_completed()
+    # straighten_bot()
+    # print('Straight')
+    # ep_chassis.move(x=0, y=0, z=-90).wait_for_completed()
+    # straighten_bot()
+    # print('Straight')
+    ep_chassis.move(x=0.5, y=-0.2, z=37).wait_for_completed()
+    straighten_bot()
+    print('Straight')
 
 if __name__ == "__main__":
     # initialization stuff goes here
@@ -421,6 +411,7 @@ if __name__ == "__main__":
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
+    # ep_chassis.sub_attitude(freq=50, callback=sub_attitude_handler)
     ep_arm = ep_robot.robotic_arm
     ep_arm.moveto(x=86, y=-22).wait_for_completed()
     ep_gripper = ep_robot.gripper
@@ -437,5 +428,6 @@ if __name__ == "__main__":
     # tMain.start()
     # tObstacles.start()
 
-    mainLoop()
+    # mainLoop()
     # grab_lego()
+    test_straighten_bot()

@@ -193,12 +193,12 @@ def obstacleDetection():
             print(f"map_obs = {map_obs}")
             # overcompensate by making obstacle occupy 3x3 space in map
             clearObstacle(map_obs[0], map_obs[1])
-            if 1 <= map_obs[0] < len(map) - 1 and 1 <= map_obs[1] < len(map[0]) - 1:
+            if 1 <= map_obs[0] < len(map_) - 1 and 1 <= map_obs[1] < len(map_[0]) - 1:
                 print(f"Adding {map_obs} to map!")
                 obstacleList.append((map_obs[0], map_obs[1]))
                 for i in range(-1,2):
                     for j in range(-1,2):
-                        map[map_obs[0]+i][map_obs[1]+j] = 7
+                        map_[map_obs[0]+i][map_obs[1]+j] = 7
             # then add to map!
 
     # ML gives position of box -> find center point of its bottom edge

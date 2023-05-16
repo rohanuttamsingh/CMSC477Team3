@@ -251,12 +251,12 @@ def obstacleDetection():
             print(f"map_obs = {map_obs}")
             # overcompensate by making obstacle occupy 3x3 space in map
             clearObstacle(map_obs[0], map_obs[1])
-            if 1 <= map_obs[0] < len(map) - 1 and 1 <= map_obs[1] < len(map[0]) - 1:
+            if 1 <= map_obs[0] < len(map_) - 1 and 1 <= map_obs[1] < len(map_[0]) - 1:
                 print(f"Adding {map_obs} to map!")
                 obstacleList.append((map_obs[0], map_obs[1]))
                 for i in range(-1,2):
                     for j in range(-1,2):
-                        map[map_obs[0]+i][map_obs[1]+j] = 7
+                        map_[map_obs[0]+i][map_obs[1]+j] = 7
 
 def straighten_bot():
     K = 2
@@ -519,11 +519,13 @@ if __name__ == "__main__":
     addr = (host, port) 
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
 
-    # tMain = threading.Thread(target=mainLoop)
-    # tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
-    # tMain.start()
-    # tObstacles.start()
+    tMain = threading.Thread(target=mainLoop)
+    tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
+    tMain.start()
+    tObstacles.start()
 
-    mainLoop()
+    # obstacleDetection()
+
+    # mainLoop()
     # grab_lego()
     # test_straighten_bot()

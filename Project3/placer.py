@@ -45,7 +45,7 @@ obstacles = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
+    pos[0], pos[1], pos[2] = -p[1], p[0], p[2]
 
 def controller(next_position):
     K = [1, 1.2]
@@ -308,7 +308,7 @@ def mainLoop():
         # Orient to face dropzone and move forward if necessary
 
         # Extend arm and release
-        ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
+        ep_arm.moveto(x=200, y=50).wait_for_completed() # move arm to transit position
         ep_gripper.open(power=50)
         time.sleep(3)
         ep_gripper.pause()

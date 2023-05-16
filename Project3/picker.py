@@ -23,7 +23,7 @@ obstacleList = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
+    pos[0], pos[1], pos[2] = -p[0], -p[1], p[2]
 
 att = np.zeros((3,))
 start_att = np.zeros((3,))

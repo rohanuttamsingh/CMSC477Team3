@@ -37,10 +37,11 @@ goal_x = 1280 // 2
 goal_y = 350
 threshold = 5
 
+startPos = (1, 1)
 legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
 map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
-obstacles = []  # array of tuples denoting the center of all obstacles found
+obstacleList = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
@@ -138,8 +139,10 @@ def signalListener():
 # => assuming that means the previous obstacle was somehow moved to this
 # current position
 def clearObstacle(r, c):
-    for (ro, co) in obstacles:
+    for (ro, co) in obstacleList:
         if abs(ro-r) <= 2 and abs(co-c) <= 2:
+            print(f"Removing {ro, co} from obstacle list")
+            obstacleList.remove((ro, co))
             for i in range(-1,2):
                 for j in range(-1,2):
                     map[ro+i][co+j] = 0
@@ -152,6 +155,7 @@ def obstacleDetection():
         theta = np.radians(61.45)
         image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
         obstacles = detector.get_obstacles(image)
+        print(f"obstacles length = {len(obstacles)}")
         for obstacle in obstacles:
             # do all of the below for each obstacle
             (x,y) = detector.get_obstacle_offset_from_center(obstacle)
@@ -165,13 +169,19 @@ def obstacleDetection():
             p_robot = np.array([[pos[0], pos[1]]])
             da_vec = np.array([[d], [a]]) / 100
             p_obs = (Rrw@da_vec) + p_robot                          # world coords of obstacle
-            map_obs = (round(p_obs[1] / 0.1524), round(p_obs[0] / 0.1524))        # gets nearest map index to obstacle
+            print(f"p_obs = {p_obs}")
+            map_obs = (startPos[0] + round(p_obs[1][0] / 0.1524), startPos[1] + round(p_obs[0][0] / 0.1524))        # gets nearest map index to obstacle
+            print(f"map_obs = {map_obs}")
             # overcompensate by making obstacle occupy 3x3 space in map
             clearObstacle(map_obs[0], map_obs[1])
-            for i in range(-1,2):
-                for j in range(-1,2):
-                    map[map_obs[0]+i][map_obs[1]+j] = 7
+            if 1 <= map_obs[0] < len(map) - 1 and 1 <= map_obs[1] < len(map[0]) - 1:
+                print(f"Adding {map_obs} to map!")
+                obstacleList.append((map_obs[0], map_obs[1]))
+                for i in range(-1,2):
+                    for j in range(-1,2):
+                        map[map_obs[0]+i][map_obs[1]+j] = 7
             # then add to map!
+        time.sleep(1)
             
     # ML gives position of box -> find center point of its bottom edge
     # and designate that point's location as (x,y), where:
@@ -371,4 +381,5 @@ if __name__ == "__main__":
     #tListener.start()
     tObstacles.start()
     while True:
-        print((map == 7).sum())
+        print(f"map sum = {(map == 7).sum()}; len(obstacles) = {len(obstacleList)}")
+        time.sleep(1)

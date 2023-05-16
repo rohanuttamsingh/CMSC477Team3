@@ -13,8 +13,8 @@ import path_planning
 import detector
 
 lego_goal_x = detector.COLS // 2
-lego_goal_y = 490
-lego_x_threshold = 15
+lego_goal_y = 480
+lego_x_threshold = 20
 
 detect_every_n_frames = 5
 
@@ -90,11 +90,12 @@ def grab_lego():
                     lego_x, lego_y = detector.get_closest_lego_coords(image)
                     cv2.circle(image, (int(lego_x), int(lego_y)), 5, (255, 255, 255), 5)
                     print(lego_y)
-                    in_front_of_lego = lego_y <= lego_goal_y
+                    in_front_of_lego = lego_y >= lego_goal_y
                     if in_front_of_lego:
                         # Hack XD
                         ep_chassis._action_dispatcher._in_progress = {}
-                        ep_chassis.move(x=0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
+                        # ep_chassis.move(x=0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
+                        ep_chassis.move(x=0, y=0, z=0, xy_speed=0.1).wait_for_completed()
                     else:
                         x_speed = 0.2
                         z_speed = (lego_x - lego_goal_x) / 10
@@ -279,7 +280,7 @@ def mainLoop():
     ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
     # Straighten robot
-    # straighten_bot()
+    straighten_bot()
     # Move slightly backwards
     ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3).wait_for_completed()
 
@@ -323,7 +324,10 @@ def mainLoop():
         # time.sleep(3)
 
         # Align to river, move forward, and drop LEGO
+        # Align
+        straighten_bot()
         # drop_at_river()
+        # Move forward and drop lego
         drop_at_river_simple()
         # # Send signal to other robot
         # host = "192.168.50.4" # set to IP address of target computer 
@@ -334,8 +338,6 @@ def mainLoop():
         # UDPSock.sendto(data.encode(), addr) 
         # UDPSock.close()
         # # Loop!
-
-        # straighten_bot()
 
         # Path planning to go from river to lego source
         # TODO: Update river position graph to be current position

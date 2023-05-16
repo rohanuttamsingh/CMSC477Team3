@@ -20,7 +20,7 @@ detect_every_n_frames = 5
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = p[0], p[1], p[2]
+    pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
 
 att = np.zeros((3,))
 start_att = np.zeros((3,))
@@ -65,7 +65,7 @@ def grab_lego():
     in_front_of_lego = False
     gripping_lego = False
     print('Moving arm')
-    ep_arm.moveto(x=180, y=-90)
+    ep_arm.moveto(x=180, y=-80)
     print('Finished moving arm')
 
     while True:
@@ -95,7 +95,6 @@ def grab_lego():
                         # Hack XD
                         ep_chassis._action_dispatcher._in_progress = {}
                         # ep_chassis.move(x=0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
-                        ep_chassis.move(x=0, y=0, z=0, xy_speed=0.1).wait_for_completed()
                     else:
                         x_speed = 0.2
                         z_speed = (lego_x - lego_goal_x) / 10
@@ -198,13 +197,21 @@ def drop_at_river():
     return
 
 def drop_at_river_simple():
-    ep_arm.moveto(x=150, y=20).wait_for_completed() # move arm to transit position
-    ep_chassis.move(x=0.05, y=0, z=0, xy_speed=0.3).wait_for_completed()
+    print('Dropping at river')
+    ep_arm._action_dispatcher._in_progress = {}
+    ep_chassis._action_dispatcher._in_progress = {}
+    ep_arm.moveto(x=90, y=20) # move arm to above river
+    # Hack
+    time.sleep(0.5)
+    ep_arm._action_dispatcher._in_progress = {}
+    ep_chassis._action_dispatcher._in_progress = {}
+    ep_chassis.move(x=0.4, y=0, z=0, xy_speed=0.3).wait_for_completed()
     ep_gripper.open(power=50)
     time.sleep(2)
     ep_gripper.pause()
     ep_chassis.move(x=-0.05, y=0, z=0, xy_speed=0.3).wait_for_completed()
     ep_arm.moveto(x=86, y=-22).wait_for_completed()
+    print('Dropped at river')
 
 # Looks for obstacles and adds them to the map
 def obstacleDetection():
@@ -227,7 +234,8 @@ def straighten_bot():
     print(att[0])
     while abs(att[0]) > threshold:
         ep_chassis.drive_speed(x=0, y=0, z=-K*att[0], timeout=0.1)
-    ep_chassis.drive_speed(x=0, y=0, z=0)
+    print('Straight')
+    return
 
 def mainLoop():
     trajectory_plot = np.zeros((480, 640, 3), dtype=np.uint8)
@@ -281,8 +289,11 @@ def mainLoop():
 
     # Straighten robot
     straighten_bot()
+    print('Straightened')
     # Move slightly backwards
-    ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3).wait_for_completed()
+    # ep_chassis._action_dispatcher._in_progress = {} # Need this or it hangs
+    ep_chassis.drive_speed(x=-0.2, y=0, z=0, timeout=1)
+    # ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3) #.wait_for_completed()
 
     while True:
         # Path planning to go from source to river
@@ -340,7 +351,6 @@ def mainLoop():
         # # Loop!
 
         # Path planning to go from river to lego source
-        # TODO: Update river position graph to be current position
         # These won't be the same because dropping off the lego impacts our position
         pr = path_planning.bfs_reverse(graph, source_position_graph)
         path = path_planning.pr_to_path(river_position_graph, pr)
@@ -381,8 +391,10 @@ def mainLoop():
         grab_lego()
         ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
 
-        # Reverse slightly backward
-        ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3).wait_for_completed()
+        # Straighten robot
+        straighten_bot()
+        # Move slightly backwards
+        ep_chassis.drive_speed(x=-0.2, y=0, z=0, timeout=1)
 
     # Loop:
     #   Picker starts at starting location
@@ -429,8 +441,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_position_graph = (1, 1)
-    source_position_graph = (13, 4)
-    river_position_graph = (13, 13)
+    source_position_graph = (13, 3)
+    river_position_graph = (13, 14)
 
     if args.left:
         print('LEFT')
@@ -469,6 +481,6 @@ if __name__ == "__main__":
     # tMain.start()
     # tObstacles.start()
 
-    # mainLoop()
+    mainLoop()
     # grab_lego()
-    test_straighten_bot()
+    # test_straighten_bot()

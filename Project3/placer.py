@@ -39,7 +39,7 @@ goal_y = 350
 threshold = 5
 
 map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
-obstacles = []  # array of tuples denoting the center of all obstacles found
+obstacleList = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
@@ -57,6 +57,13 @@ def controller(next_position):
     K = [1, 1.2]
     diff = np.array(next_position) - pos[:2]
     return K * diff
+
+def rotate_to(yaw_des):
+    K = 5
+    diff = yaw_des - yaw[0]
+    while abs(diff) > 5:
+        ep_chassis.drive_speed(x=0, y=0, z=K*diff, timeout=0.1)
+
 
 def distance(position):
     return np.linalg.norm(np.array(position) - pos[:2])
@@ -146,8 +153,10 @@ def signalListener():
 # => assuming that means the previous obstacle was somehow moved to this
 # current position
 def clearObstacle(r, c):
-    for (ro, co) in obstacles:
+    for (ro, co) in obstacleList:
         if abs(ro-r) <= 2 and abs(co-c) <= 2:
+            print(f"Removing {ro, co} from obstacle list")
+            obstacleList.remove((ro, co))
             for i in range(-1,2):
                 for j in range(-1,2):
                     map[ro+i][co+j] = 0
@@ -160,6 +169,7 @@ def obstacleDetection():
         theta = np.radians(61.45)
         image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
         obstacles = detector.get_obstacles(image)
+        print(f"obstacles length = {len(obstacles)}")
         for obstacle in obstacles:
             # do all of the below for each obstacle
             (x,y) = detector.get_obstacle_offset_from_center(obstacle)
@@ -173,12 +183,17 @@ def obstacleDetection():
             p_robot = np.array([[pos[0], pos[1]]])
             da_vec = np.array([[d], [a]]) / 100
             p_obs = (Rrw@da_vec) + p_robot                          # world coords of obstacle
-            map_obs = (round(p_obs[1] / 0.1524), round(p_obs[0] / 0.1524))        # gets nearest map index to obstacle
+            print(f"p_obs = {p_obs}")
+            map_obs = (start_position_graph[0] + round(p_obs[1][0] / 0.1524), start_position_graph[1] + round(p_obs[0][0] / 0.1524))        # gets nearest map index to obstacle
+            print(f"map_obs = {map_obs}")
             # overcompensate by making obstacle occupy 3x3 space in map
             clearObstacle(map_obs[0], map_obs[1])
-            for i in range(-1,2):
-                for j in range(-1,2):
-                    map[map_obs[0]+i][map_obs[1]+j] = 7
+            if 1 <= map_obs[0] < len(map) - 1 and 1 <= map_obs[1] < len(map[0]) - 1:
+                print(f"Adding {map_obs} to map!")
+                obstacleList.append((map_obs[0], map_obs[1]))
+                for i in range(-1,2):
+                    for j in range(-1,2):
+                        map[map_obs[0]+i][map_obs[1]+j] = 7
             # then add to map!
 
     # ML gives position of box -> find center point of its bottom edge
@@ -329,7 +344,8 @@ def mainLoop():
         # Back up slightly to not knock over any legos
         ep_chassis.move(x=-0.15, y=0, z=0, xy_speed=0.3).wait_for_completed()
         # Rotate
-        ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
+        rotate_to(180)
+        # ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
 
         # Spin to face original heading
         if args.left:
@@ -374,7 +390,8 @@ def mainLoop():
             angle = -90
         else:
             angle = 90
-        ep_chassis.move(x=0, y=0, z=angle, z_speed=45).wait_for_completed()
+        rotate_to(angle)
+        # ep_chassis.move(x=0, y=0, z=angle, z_speed=45).wait_for_completed()
         print('*****')
         print('Made it to river')
         print('*****')
@@ -404,7 +421,7 @@ if __name__ == "__main__":
         print('ERROR: What side are you starting on?')
         exit(1)
 
-    legos_waiting = 1    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
+    legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
     # initialization stuff goes here
     ep_robot = robot.Robot()

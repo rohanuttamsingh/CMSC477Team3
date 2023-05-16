@@ -38,6 +38,8 @@ goal_x = 1280 // 2
 goal_y = 350
 threshold = 5
 
+legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
+
 map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
 obstacleList = []  # array of tuples denoting the center of all obstacles found
 
@@ -59,10 +61,13 @@ def controller(next_position):
     return K * diff
 
 def rotate_to(yaw_des):
-    K = 5
-    diff = yaw_des - yaw[0]
-    while abs(diff) > 5:
+    K = 1.5
+    diff = yaw_des - att[0]
+    while abs(diff) > 3:
         ep_chassis.drive_speed(x=0, y=0, z=K*diff, timeout=0.1)
+        diff = yaw_des - att[0]
+    ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+    print("Done rotating")
 
 
 def distance(position):
@@ -94,7 +99,8 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
-    ep_arm.moveto(x=180, y=-90).wait_for_completed()
+    ep_chassis._action_dispatcher._in_progress = {}
+    ep_arm.moveto(x=183, y=-71).wait_for_completed()
 
     while True:
         try:
@@ -224,6 +230,8 @@ def obstacleDetection():
 
 # Main control loop
 def mainLoop():
+    global legos_waiting
+
     trajectory_plot = np.zeros((480, 640, 3), dtype=np.uint8)
     plot_off_x = int(trajectory_plot.shape[1]/2)
     plot_off_y = int(trajectory_plot.shape[0]/2)
@@ -266,29 +274,29 @@ def mainLoop():
     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
     # Rotate towards river
     if args.left:
-        z_speed = -30
+        angle = 60
     else:
-        z_speed = 30
-    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
+        angle = -60
+    rotate_to(angle)
+    # ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
     print('*****')
     print('Made it to river')
     print('*****')
     # time.sleep(3)
 
     while 1:
+        print("Start of loop")
         # Check if any LEGOs waiting for pickup
         while legos_waiting == 0:
             # none dropped off atm - idle while waiting for signal
             pass
+        print(f"legos_waiting = {legos_waiting} > 0")
         # NN picks up LEGO
         grab_lego()
         ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
         # Rotate back towards original heading
-        if args.left:
-            z_speed = 30
-        else:
-            z_speed = -30
-        ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
+        rotate_to(0)
+        # ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
 
         # Path planning to go from river to dropoff position
         pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
@@ -327,16 +335,12 @@ def mainLoop():
         # time.sleep(3)
 
         # Orient to face dropzone and move forward if necessary
-        if args.left:
-            z_speed = -30
-        else:
-            z_speed = 30
-        ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=3)
+        rotate_to(-180)
 
         # Extend arm and release
         ep_arm.moveto(x=200, y=50).wait_for_completed() # move arm to transit position
         ep_gripper.open(power=50)
-        time.sleep(3)
+        time.sleep(1)
         ep_gripper.pause()
         legos_waiting = legos_waiting - 1
         # Retract arm, return to starting position/orientation and loop
@@ -344,15 +348,8 @@ def mainLoop():
         # Back up slightly to not knock over any legos
         ep_chassis.move(x=-0.15, y=0, z=0, xy_speed=0.3).wait_for_completed()
         # Rotate
-        rotate_to(180)
+        rotate_to(0)
         # ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
-
-        # Spin to face original heading
-        if args.left:
-            z_speed = -30
-        else:
-            z_speed = 30
-        ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=3)
 
         # Path planning to go from dropoff position to river
         pr = path_planning.bfs_reverse(graph, river_position_graph)
@@ -387,9 +384,9 @@ def mainLoop():
         ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
         # Rotate towards river
         if args.left:
-            angle = -90
+            angle = 60
         else:
-            angle = 90
+            angle = -60
         rotate_to(angle)
         # ep_chassis.move(x=0, y=0, z=angle, z_speed=45).wait_for_completed()
         print('*****')
@@ -408,7 +405,7 @@ if __name__ == "__main__":
 
     start_position_graph = (2, 3)
     dropoff_position_graph = (2, 2)
-    river_position_graph = (7, 12)
+    river_position_graph = (8, 11)
 
     if args.left:
         print('LEFT')
@@ -420,8 +417,6 @@ if __name__ == "__main__":
     else:
         print('ERROR: What side are you starting on?')
         exit(1)
-
-    legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
     # initialization stuff goes here
     ep_robot = robot.Robot()

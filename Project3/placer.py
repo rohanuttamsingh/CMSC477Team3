@@ -45,6 +45,11 @@ pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
+yaw = np.zeros((1,))
+start_yaw = np.zeros((1,))
+def sub_attitude_handler(a):
+    yaw[0] = a[0] - start_yaw[0]
+
 def controller(next_position):
     K = [1, 1.2]
     diff = np.array(next_position) - pos[:2]
@@ -413,6 +418,9 @@ if __name__ == "__main__":
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
+    ep_chassis.sub_attitude(freq=50, callback=sub_attitude_handler)
+    time.sleep(1/50)
+    start_yaw = yaw[0]
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
     

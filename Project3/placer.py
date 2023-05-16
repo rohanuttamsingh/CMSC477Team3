@@ -165,7 +165,8 @@ def clearObstacle(r, c):
             obstacleList.remove((ro, co))
             for i in range(-1,2):
                 for j in range(-1,2):
-                    map_[ro+i][co+j] = 0
+                    if map_[ro+i][co+j] != 1:
+                        map_[ro+i][co+j] = 0
 
 
 def obstacleDetection():
@@ -198,7 +199,8 @@ def obstacleDetection():
                 obstacleList.append((map_obs[0], map_obs[1]))
                 for i in range(-1,2):
                     for j in range(-1,2):
-                        map_[map_obs[0]+i][map_obs[1]+j] = 7
+                        if map_[map_obs[0]+i][map_obs[1]+j] != 1:
+                            map_[map_obs[0]+i][map_obs[1]+j] = 7
             # then add to map!
 
     # ML gives position of box -> find center point of its bottom edge

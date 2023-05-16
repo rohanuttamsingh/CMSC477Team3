@@ -55,6 +55,13 @@ def controller(next_position):
     diff = np.array(next_position) - pos[:2]
     return K * diff
 
+def rotate_to(yaw_des):
+    K = 5
+    diff = yaw_des - yaw[0]
+    while abs(diff) > 5:
+        ep_chassis.drive_speed(x=0, y=0, z=K*diff, timeout=0.1)
+
+
 def distance(position):
     return np.linalg.norm(np.array(position) - pos[:2])
 
@@ -334,7 +341,8 @@ def mainLoop():
         # Back up slightly to not knock over any legos
         ep_chassis.move(x=-0.15, y=0, z=0, xy_speed=0.3).wait_for_completed()
         # Rotate
-        ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
+        rotate_to(180)
+        # ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
 
         # Spin to face original heading
         if args.left:
@@ -379,7 +387,8 @@ def mainLoop():
             angle = -90
         else:
             angle = 90
-        ep_chassis.move(x=0, y=0, z=angle, z_speed=45).wait_for_completed()
+        rotate_to(angle)
+        # ep_chassis.move(x=0, y=0, z=angle, z_speed=45).wait_for_completed()
         print('*****')
         print('Made it to river')
         print('*****')

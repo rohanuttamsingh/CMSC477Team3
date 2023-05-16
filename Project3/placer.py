@@ -45,10 +45,13 @@ pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
-yaw = np.zeros((1,))
-start_yaw = np.zeros((1,))
-def sub_attitude_handler(a):
-    yaw[0] = a[0] - start_yaw[0]
+att = np.zeros((3,))
+start_att = np.zeros((3,))
+def sub_attitude_handler(p):
+    att[0], att[1], att[2] = p[0], p[1], p[2]
+    att[0] -= start_att[0]
+    att[1] -= start_att[1]
+    att[2] -= start_att[2]
 
 def controller(next_position):
     K = [1, 1.2]
@@ -429,7 +432,7 @@ if __name__ == "__main__":
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
     ep_chassis.sub_attitude(freq=50, callback=sub_attitude_handler)
     time.sleep(1/50)
-    start_yaw = yaw[0]
+    start_att[0], start_att[1], start_att[2] = att[0], att[1], att[2]
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
     

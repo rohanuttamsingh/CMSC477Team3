@@ -13,7 +13,7 @@ import path_planning
 import detector
 
 lego_goal_x = detector.COLS // 2
-lego_goal_y = 480
+lego_goal_y = 490
 lego_x_threshold = 15
 
 detect_every_n_frames = 5
@@ -22,9 +22,10 @@ pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
-att = np.zeros((3,)) # Yaw, pitch, roll
+yaw = np.zeros((1,))
+start_yaw = np.zeros((1,))
 def sub_attitude_handler(a):
-    att[0], att[1], att[2] = a[0], a[1], a[2]
+    yaw[0] = a[0] - start_yaw[0]
 
 def controller(next_position):
     K = [1, 1.2]
@@ -60,7 +61,9 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
-    ep_arm.moveto(x=180, y=-90).wait_for_completed()
+    print('Moving arm')
+    ep_arm.moveto(x=180, y=-90)
+    print('Finished moving arm')
 
     while True:
         try:
@@ -86,7 +89,9 @@ def grab_lego():
                     print(lego_y)
                     in_front_of_lego = lego_y <= lego_goal_y
                     if in_front_of_lego:
-                        ep_chassis.move(x=0.05, y=0, z=0, xy_speed=0.1).wait_for_completed()
+                        # Hack XD
+                        ep_chassis._action_dispatcher._in_progress = {}
+                        ep_chassis.move(x=0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
                     else:
                         x_speed = 0.2
                         z_speed = (lego_x - lego_goal_x) / 10
@@ -125,6 +130,8 @@ def drop_at_river():
     i = 0
     angled = True
     at_river = False
+    # Move arm above river
+    ep_arm.moveto(x=150, y=20).wait_for_completed() # move arm to transit position
 
     # move up right next to river
     while True:
@@ -186,6 +193,14 @@ def drop_at_river():
     ep_chassis.move(x=-0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
     return
 
+def drop_at_river_simple():
+    ep_arm.moveto(x=150, y=20).wait_for_completed() # move arm to transit position
+    ep_chassis.move(x=0.05, y=0, z=0, xy_speed=0.3).wait_for_completed()
+    ep_gripper.open(power=50)
+    time.sleep(2)
+    ep_gripper.pause()
+    ep_chassis.move(x=-0.05, y=0, z=0, xy_speed=0.3).wait_for_completed()
+    ep_arm.moveto(x=86, y=-22).wait_for_completed()
 
 # Looks for obstacles and adds them to the map
 def obstacleDetection():
@@ -305,7 +320,8 @@ def mainLoop():
         # time.sleep(3)
 
         # Align to river, move forward, and drop LEGO
-        drop_at_river()
+        # drop_at_river()
+        drop_at_river_simple()
         # # Send signal to other robot
         # host = "192.168.50.4" # set to IP address of target computer 
         # port = 13000 
@@ -408,8 +424,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_position_graph = (1, 1)
-    source_position_graph = (13, 1)
-    river_position_graph = (13, 11)
+    source_position_graph = (13, 4)
+    river_position_graph = (13, 13)
 
     if args.left:
         print('LEFT')
@@ -429,7 +445,9 @@ if __name__ == "__main__":
     ep_camera.start_video_stream(display=False, resolution=camera.STREAM_720P)
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
-    # ep_chassis.sub_attitude(freq=50, callback=sub_attitude_handler)
+    ep_chassis.sub_attitude(freq=50, callback=sub_attitude_handler)
+    time.sleep(1/50)
+    start_yaw = yaw[0]
     ep_arm = ep_robot.robotic_arm
     ep_arm.moveto(x=86, y=-22).wait_for_completed()
     ep_gripper = ep_robot.gripper
@@ -441,11 +459,11 @@ if __name__ == "__main__":
     addr = (host, port) 
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
 
-    # tMain = threading.Thread(target=mainLoop)
-    # tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
-    # tMain.start()
-    # tObstacles.start()
+    tMain = threading.Thread(target=mainLoop)
+    tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
+    tMain.start()
+    tObstacles.start()
 
-    mainLoop()
+    # mainLoop()
     # grab_lego()
     # test_straighten_bot()

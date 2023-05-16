@@ -35,7 +35,7 @@ def distance(position):
 
 if __name__ == '__main__':
     ep_robot = robot.Robot()
-    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
+    ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)
 
     ep_chassis = ep_robot.chassis
     ep_chassis.sub_position(cs=0, freq=50, callback=sub_position_handler)
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     #     cv2.waitKey(1)
 
     while True:
-        ep_chassis.drive_speed(x=0.0, y=-0.2, z=0, timeout=0.1)
+        ep_chassis.drive_speed(x=0.0, y=-0.1, z=0, timeout=0.1)
         if i == 0:
             print(f'position: {pos}')
         i = (i + 1) % 30

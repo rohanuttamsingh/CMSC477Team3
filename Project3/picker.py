@@ -1,3 +1,4 @@
+import argparse
 import time
 import numpy as np
 import cv2
@@ -217,9 +218,6 @@ def mainLoop():
 
     map_ = path_planning.load_map('map_left.csv')
     graph, _ = path_planning.create_graph(map_)
-    source_position_graph = (14, 1)
-    river_position_graph = (14, 11)
-    start_position_graph = (1, 1)
 
     # Path planning to go from starting position to lego source
     # Just do this once, because after this will go from river to lego source
@@ -256,7 +254,7 @@ def mainLoop():
     print('*****')
     print('Made it to lego source')
     print('*****')
-    time.sleep(3)
+    # time.sleep(3)
 
     # Use NN to pick up LEGO
     grab_lego()
@@ -304,7 +302,7 @@ def mainLoop():
         print('*****')
         print('Made it to river')
         print('*****')
-        time.sleep(3)
+        # time.sleep(3)
 
         # Align to river, move forward, and drop LEGO
         drop_at_river()
@@ -356,7 +354,7 @@ def mainLoop():
         print('*****')
         print('Made it to lego source')
         print('*****')
-        time.sleep(3)
+        # time.sleep(3)
 
         # Use NN to pick up LEGO
         grab_lego()
@@ -404,6 +402,25 @@ def test_straighten_bot():
     print('Straight')
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--left', action='store_true')
+    parser.add_argument('--right', action='store_true')
+    args = parser.parse_args()
+
+    if args.left:
+        print('LEFT')
+        start_position_graph = (1, 1)
+        source_position_graph = (13, 1)
+        river_position_graph = (13, 11)
+    elif args.right:
+        print('RIGHT')
+        start_position_graph = (27, 1)
+        source_position_graph = (15, 1)
+        river_position_graph = (15, 11)
+    else:
+        print('ERROR: What side are you starting on?')
+        exit(1)
+
     # initialization stuff goes here
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT5_SN)
@@ -428,6 +445,6 @@ if __name__ == "__main__":
     # tMain.start()
     # tObstacles.start()
 
-    # mainLoop()
+    mainLoop()
     # grab_lego()
-    test_straighten_bot()
+    # test_straighten_bot()

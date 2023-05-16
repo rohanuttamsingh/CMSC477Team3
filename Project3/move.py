@@ -79,7 +79,7 @@ if __name__ == '__main__':
     #     cv2.waitKey(1)
 
     while True:
-        ep_chassis.drive_speed(x=0.0, y=-0.2, z=0, timeout=0.1)
+        ep_chassis.drive_speed(x=0.0, y=0.1, z=0, timeout=0.1)
         if i == 0:
             print(f'position: {pos}')
         i = (i + 1) % 30

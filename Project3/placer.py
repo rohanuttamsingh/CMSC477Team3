@@ -1,3 +1,4 @@
+import argparse
 import time
 import numpy as np
 import cv2
@@ -173,7 +174,7 @@ def obstacleDetection():
                 for j in range(-1,2):
                     map[map_obs[0]+i][map_obs[1]+j] = 7
             # then add to map!
-            
+
     # ML gives position of box -> find center point of its bottom edge
     # and designate that point's location as (x,y), where:
     #   - x = horizontal location in image
@@ -209,9 +210,6 @@ def mainLoop():
 
     map_ = path_planning.load_map('map_right.csv')
     graph, _ = path_planning.create_graph(map_)
-    start_position_graph = (1, 1)
-    river_position_graph = (13, 12)
-    dropoff_position_graph = (2, 3)
 
     # Path planning to go from starting position to river
     # Just do this once, because after this will go from dropoff zone to river
@@ -221,7 +219,7 @@ def mainLoop():
     threshold = 0.1 # 10cm
 
     print(path)
-    time.sleep(3)
+    # time.sleep(3)
 
     i = 0
     idx = 0
@@ -245,10 +243,16 @@ def mainLoop():
         cv2.waitKey(1)
 
     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+    # Rotate towards river
+    if args.left:
+        angle = -90
+    else:
+        angle = 90
+    ep_chassis.move(x=0, y=0, z=angle).wait_for_completed()
     print('*****')
     print('Made it to river')
     print('*****')
-    time.sleep(3)
+    # time.sleep(3)
 
     while 1:
         # Check if any LEGOs waiting for pickup
@@ -258,6 +262,12 @@ def mainLoop():
         # NN picks up LEGO
         grab_lego()
         ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
+        # Rotate towards dropoff zone
+        if args.left:
+            angle = -90
+        else:
+            angle = 90
+        ep_chassis.move(x=0, y=0, z=angle).wait_for_completed()
 
         # Path planning to go from river to dropoff position
         pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
@@ -293,7 +303,7 @@ def mainLoop():
         print('*****')
         print('Made it to dropoff position')
         print('*****')
-        time.sleep(3)
+        # time.sleep(3)
 
         # Orient to face dropzone and move forward if necessary
 
@@ -305,6 +315,10 @@ def mainLoop():
         legos_waiting = legos_waiting - 1
         # Retract arm, return to starting position/orientation and loop
         ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
+        # Back up slightly to not knock over any legos
+        ep_chassis.move(x=-0.15, y=0, z=0, xy_speed=0.3).wait_for_completed()
+        # Rotate
+        ep_chassis.move(x=0, y=0, z=180).wait_for_completed()
 
         # Path planning to go from dropoff position to river
         pr = path_planning.bfs_reverse(graph, river_position_graph)
@@ -337,15 +351,40 @@ def mainLoop():
             cv2.waitKey(1)
 
         ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
+        # Rotate towards river
+        if args.left:
+            angle = -90
+        else:
+            angle = 90
+        ep_chassis.move(x=0, y=0, z=angle).wait_for_completed()
         print('*****')
         print('Made it to river')
         print('*****')
-        time.sleep(3)
+        # time.sleep(3)
         # Loop!
 
 
 if __name__ == "__main__":
     # --- PROGRAM STARTUP ---
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--left', action='store_true')
+    parser.add_argument('--right', action='store_true')
+    args = parser.parse_args()
+
+    if args.left:
+        print('LEFT')
+        start_position_graph = (1, 1)
+        dropoff_position_graph = (2, 3)
+        river_position_graph = (13, 10)
+    elif args.right:
+        print('RIGHT')
+        start_position_graph = (27, 1)
+        dropoff_position_graph = (26, 3)
+        river_position_graph = (15, 10)
+    else:
+        print('ERROR: What side are you starting on?')
+        exit(1)
+
     # initialization stuff goes here
     ep_robot = robot.Robot()
     ep_robot.initialize(conn_type='sta', sn=sns.ROBOT6_SN)

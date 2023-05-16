@@ -18,6 +18,9 @@ lego_x_threshold = 20
 
 detect_every_n_frames = 5
 
+map_ = np.loadtxt('map_left.csv', delimiter=',', dtype=int)
+obstacleList = []  # array of tuples denoting the center of all obstacles found
+
 pos = np.zeros((3,))
 def sub_position_handler(p):
     pos[0], pos[1], pos[2] = p[1], -p[0], p[2]
@@ -213,20 +216,47 @@ def drop_at_river_simple():
     ep_arm.moveto(x=86, y=-22).wait_for_completed()
     print('Dropped at river')
 
-# Looks for obstacles and adds them to the map
+def clearObstacle(r, c):
+    for (ro, co) in obstacleList:
+        if abs(ro-r) <= 2 and abs(co-c) <= 2:
+            print(f"Removing {ro, co} from obstacle list")
+            obstacleList.remove((ro, co))
+            for i in range(-1,2):
+                for j in range(-1,2):
+                    map_[ro+i][co+j] = 0
+
+
 def obstacleDetection():
-    # assume we have some function that returns phi and psi, where
-    #   - phi = vertical angular offset from camera axis
-    #   - psi = horizontal angular offset from camera axis
-    # then, in camera frame, we can calculate:
-    #   - depth from robot is d = 32.5tan(phi + theta)
-    #   - horizontal displacement is a = d*tan(psi)
-    # => box is at (d,a) in camera frame
-    # camera is located in front of robot center
-    # => to get to robot frame, add 5 cm to d
-    # => box is at (d+5,a) in robot frame
-    # => convert to world coordinates before adding to map
-    pass
+    while True:
+        f = 184.752*1.7                                             # focal length IN PIXELS
+        theta = np.radians(61.45)
+        image = ep_camera.read_cv2_image(strategy='newest', timeout=5.0)
+        obstacles = detector.get_obstacles(image)
+        print(f"obstacles length = {len(obstacles)}")
+        for obstacle in obstacles:
+            # do all of the below for each obstacle
+            (x,y) = detector.get_obstacle_offset_from_center(obstacle)
+            phi = -np.arctan(y / f) # inverting because y > 0 means edge is BELOW center in img frame
+            d = 5 + 32.5 * np.tan(theta + phi)                      # cm
+            psi = np.arctan(x / f)
+            a = d * np.tan(psi)                                     # cm
+            # convert (d,a) from robot frame to world frame,
+            Rrw = np.array([[np.cos(np.radians(pos[2])), -np.sin(np.radians(pos[2]))],
+                            [np.sin(np.radians(pos[2])),  np.cos(np.radians(pos[2]))]])
+            p_robot = np.array([[pos[0], pos[1]]])
+            da_vec = np.array([[d], [a]]) / 100
+            p_obs = (Rrw@da_vec) + p_robot                          # world coords of obstacle
+            print(f"p_obs = {p_obs}")
+            map_obs = (start_position_graph[0] + round(p_obs[1][0] / 0.1524), start_position_graph[1] + round(p_obs[0][0] / 0.1524))        # gets nearest map index to obstacle
+            print(f"map_obs = {map_obs}")
+            # overcompensate by making obstacle occupy 3x3 space in map
+            clearObstacle(map_obs[0], map_obs[1])
+            if 1 <= map_obs[0] < len(map) - 1 and 1 <= map_obs[1] < len(map[0]) - 1:
+                print(f"Adding {map_obs} to map!")
+                obstacleList.append((map_obs[0], map_obs[1]))
+                for i in range(-1,2):
+                    for j in range(-1,2):
+                        map[map_obs[0]+i][map_obs[1]+j] = 7
 
 def straighten_bot():
     K = 2
@@ -243,7 +273,6 @@ def mainLoop():
     plot_off_y = int(trajectory_plot.shape[0]/2)
     plot_scale = 100
 
-    map_ = path_planning.load_map('map_left.csv')
     graph, _ = path_planning.create_graph(map_)
 
     # Path planning to go from starting position to lego source
@@ -260,6 +289,10 @@ def mainLoop():
     idx = 0
     threshold = 0.1 # 10cm
     while idx < len(path):
+        graph, _ = path_planning.create_graph(map_)
+        pr = path_planning.bfs_reverse(graph, source_position_graph)
+        path = path_planning.pr_to_path(start_position_graph, pr)
+        path = path_planning.process_path(path, start_position_graph)
         velocities = controller(path[idx])
         ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
         if i == 0:
@@ -311,6 +344,10 @@ def mainLoop():
         idx = 0
         threshold = 0.1 # 10cm
         while idx < len(path):
+            graph, _ = path_planning.create_graph(map_)
+            pr = path_planning.bfs_reverse(graph, river_position_graph)
+            path = path_planning.pr_to_path(current_position_graph, pr)
+            path = path_planning.process_path(path, start_position_graph)
             velocities = controller(path[idx])
             ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
             if i == 0:
@@ -364,6 +401,10 @@ def mainLoop():
         idx = 0
         threshold = 0.1 # 10cm
         while idx < len(path):
+            graph, _ = path_planning.create_graph(map_)
+            pr = path_planning.bfs_reverse(graph, source_position_graph)
+            path = path_planning.pr_to_path(river_position_graph, pr)
+            path = path_planning.process_path(path, start_position_graph)
             velocities = controller(path[idx])
             ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
             if i == 0:

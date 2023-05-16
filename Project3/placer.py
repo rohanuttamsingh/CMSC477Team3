@@ -38,14 +38,12 @@ goal_x = 1280 // 2
 goal_y = 350
 threshold = 5
 
-legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
-
 map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
 obstacles = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = -p[1], p[0], p[2]
+    pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
 def controller(next_position):
     K = [1, 1.2]
@@ -245,10 +243,10 @@ def mainLoop():
     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
     # Rotate towards river
     if args.left:
-        angle = -90
+        z_speed = -30
     else:
-        angle = 90
-    ep_chassis.move(x=0, y=0, z=angle).wait_for_completed()
+        z_speed = 30
+    ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
     print('*****')
     print('Made it to river')
     print('*****')
@@ -262,12 +260,12 @@ def mainLoop():
         # NN picks up LEGO
         grab_lego()
         ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
-        # Rotate towards dropoff zone
+        # Rotate back towards original heading
         if args.left:
-            angle = -90
+            z_speed = 30
         else:
-            angle = 90
-        ep_chassis.move(x=0, y=0, z=angle).wait_for_completed()
+            z_speed = -30
+        ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
 
         # Path planning to go from river to dropoff position
         pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
@@ -306,6 +304,11 @@ def mainLoop():
         # time.sleep(3)
 
         # Orient to face dropzone and move forward if necessary
+        if args.left:
+            z_speed = -30
+        else:
+            z_speed = 30
+        ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=3)
 
         # Extend arm and release
         ep_arm.moveto(x=200, y=50).wait_for_completed() # move arm to transit position
@@ -318,7 +321,14 @@ def mainLoop():
         # Back up slightly to not knock over any legos
         ep_chassis.move(x=-0.15, y=0, z=0, xy_speed=0.3).wait_for_completed()
         # Rotate
-        ep_chassis.move(x=0, y=0, z=180).wait_for_completed()
+        ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
+
+        # Spin to face original heading
+        if args.left:
+            z_speed = -30
+        else:
+            z_speed = 30
+        ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=3)
 
         # Path planning to go from dropoff position to river
         pr = path_planning.bfs_reverse(graph, river_position_graph)
@@ -356,7 +366,7 @@ def mainLoop():
             angle = -90
         else:
             angle = 90
-        ep_chassis.move(x=0, y=0, z=angle).wait_for_completed()
+        ep_chassis.move(x=0, y=0, z=angle, z_speed=45).wait_for_completed()
         print('*****')
         print('Made it to river')
         print('*****')
@@ -371,19 +381,22 @@ if __name__ == "__main__":
     parser.add_argument('--right', action='store_true')
     args = parser.parse_args()
 
+    start_position_graph = (2, 3)
+    dropoff_position_graph = (2, 2)
+    river_position_graph = (7, 12)
+
     if args.left:
         print('LEFT')
-        start_position_graph = (1, 1)
-        dropoff_position_graph = (2, 3)
-        river_position_graph = (13, 10)
     elif args.right:
         print('RIGHT')
-        start_position_graph = (27, 1)
-        dropoff_position_graph = (26, 3)
-        river_position_graph = (15, 10)
+        start_position_graph = (27 - start_position_graph[0], start_position_graph[1])
+        dropoff_position_graph = (27 - dropoff_position_graph[0], dropoff_position_graph[1])
+        river_position_graph = (27 - river_position_graph[0], river_position_graph[1])
     else:
         print('ERROR: What side are you starting on?')
         exit(1)
+
+    legos_waiting = 1    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
     # initialization stuff goes here
     ep_robot = robot.Robot()
@@ -402,12 +415,13 @@ if __name__ == "__main__":
     UDPSock = socket(AF_INET, SOCK_DGRAM) 
     UDPSock.bind(addr) 
                     
-    #tMain = threading.Thread(target=mainLoop)
-    #tListener = threading.Thread(target=signalListener)
-    tObstacles = threading.Thread(target=obstacleDetection)
+    # tMain = threading.Thread(target=mainLoop)
+    # tListener = threading.Thread(target=signalListener)
+    # tObstacles = threading.Thread(target=obstacleDetection)
     # add third thread for obstacle detector
-    #tMain.start()
-    #tListener.start()
-    tObstacles.start()
-    while True:
-        print((map == 7).sum())
+    # tMain.start()
+    # tListener.start()
+    # tObstacles.start()
+    # while True:
+    #     print((map == 7).sum())
+    mainLoop()

@@ -407,16 +407,17 @@ if __name__ == "__main__":
     parser.add_argument('--right', action='store_true')
     args = parser.parse_args()
 
+    start_position_graph = (1, 1)
+    source_position_graph = (13, 1)
+    river_position_graph = (13, 11)
+
     if args.left:
         print('LEFT')
-        start_position_graph = (1, 1)
-        source_position_graph = (13, 1)
-        river_position_graph = (13, 11)
     elif args.right:
         print('RIGHT')
-        start_position_graph = (27, 1)
-        source_position_graph = (15, 1)
-        river_position_graph = (15, 11)
+        start_position_graph = (27 - start_position_graph[0], start_position_graph[1])
+        source_position_graph = (27 - source_position_graph[0], source_position_graph[1])
+        river_position_graph = (27 - river_position_graph[0], river_position_graph[1])
     else:
         print('ERROR: What side are you starting on?')
         exit(1)

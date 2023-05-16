@@ -330,6 +330,7 @@ def mainLoop():
 
     while True:
         # Path planning to go from source to river
+        graph, _ = path_planning.create_graph(map_)
         # current_position_graph = path_planning.real_to_graph_coords((pos[0], pos[1]))
         current_position_graph = source_position_graph
         pr = path_planning.bfs_reverse(graph, river_position_graph)
@@ -388,6 +389,7 @@ def mainLoop():
         # # Loop!
 
         # Path planning to go from river to lego source
+        graph, _ = path_planning.create_graph(map_)
         # These won't be the same because dropping off the lego impacts our position
         pr = path_planning.bfs_reverse(graph, source_position_graph)
         path = path_planning.pr_to_path(river_position_graph, pr)

@@ -40,7 +40,7 @@ threshold = 5
 
 legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
-map = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
+map_ = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
 obstacleList = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
@@ -165,10 +165,9 @@ def clearObstacle(r, c):
             obstacleList.remove((ro, co))
             for i in range(-1,2):
                 for j in range(-1,2):
-                    map[ro+i][co+j] = 0
+                    map_[ro+i][co+j] = 0
 
 
-# TODO
 def obstacleDetection():
     while True:
         f = 184.752*1.7                                             # focal length IN PIXELS
@@ -237,7 +236,6 @@ def mainLoop():
     plot_off_y = int(trajectory_plot.shape[0]/2)
     plot_scale = 100
 
-    map_ = path_planning.load_map('map_right.csv')
     graph, _ = path_planning.create_graph(map_)
 
     # Path planning to go from starting position to river
@@ -254,6 +252,10 @@ def mainLoop():
     idx = 0
     threshold = 0.1 # 10cm
     while idx < len(path):
+        graph, _ = path_planning.create_graph(map_)
+        pr = path_planning.bfs_reverse(graph, river_position_graph)
+        path = path_planning.pr_to_path(start_position_graph, pr)
+        path = path_planning.process_path(path, start_position_graph)
         velocities = controller(path[idx])
         ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
         if i == 0:
@@ -298,6 +300,8 @@ def mainLoop():
         rotate_to(0)
         # ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=1.2)
 
+        graph, _ = path_planning.create_graph(map_)
+
         # Path planning to go from river to dropoff position
         pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
         path = path_planning.pr_to_path(river_position_graph, pr)
@@ -311,6 +315,10 @@ def mainLoop():
         idx = 0
         threshold = 0.1 # 10cm
         while idx < len(path):
+            graph, _ = path_planning.create_graph(map_)
+            pr = path_planning.bfs_reverse(graph, dropoff_position_graph)
+            path = path_planning.pr_to_path(river_position_graph, pr)
+            path = path_planning.process_path(path, start_position_graph)
             velocities = controller(path[idx])
             ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
             if i == 0:
@@ -351,6 +359,8 @@ def mainLoop():
         rotate_to(0)
         # ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
 
+        graph, _ = path_planning.create_graph(map_)
+
         # Path planning to go from dropoff position to river
         pr = path_planning.bfs_reverse(graph, river_position_graph)
         path = path_planning.pr_to_path(dropoff_position_graph, pr)
@@ -364,6 +374,10 @@ def mainLoop():
         idx = 0
         threshold = 0.1 # 10cm
         while idx < len(path):
+            graph, _ = path_planning.create_graph(map_)
+            pr = path_planning.bfs_reverse(graph, river_position_graph)
+            path = path_planning.pr_to_path(dropoff_position_graph, pr)
+            path = path_planning.process_path(path, start_position_graph)
             velocities = controller(path[idx])
             ep_chassis.drive_speed(x=velocities[0], y=velocities[1], z=0, timeout=0.1)
             if i == 0:

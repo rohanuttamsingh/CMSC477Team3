@@ -35,10 +35,10 @@ NOTE 3: cannot use april tags to check robot orientation - must keep track of it
 """
 
 goal_x = 1280 // 2
-goal_y = 350
-threshold = 5
+lego_goal_y = 485
+threshold = 20
 
-legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
+legos_waiting = 1    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
 map_ = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
 obstacleList = []  # array of tuples denoting the center of all obstacles found
@@ -61,9 +61,9 @@ def controller(next_position):
     return K * diff
 
 def rotate_to(yaw_des):
-    K = 1.5
+    K = 1
     diff = yaw_des - att[0]
-    while abs(diff) > 3:
+    while abs(diff) > 8:
         ep_chassis.drive_speed(x=0, y=0, z=K*diff, timeout=0.1)
         diff = yaw_des - att[0]
     ep_chassis.drive_speed(x=0, y=0, z=0, timeout=0.1)
@@ -99,8 +99,12 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
-    ep_chassis._action_dispatcher._in_progress = {}
-    ep_arm.moveto(x=183, y=-71).wait_for_completed()
+    # ep_chassis._action_dispatcher._in_progress = {}
+    # print('Moving arm')
+    # ep_chassis._action_dispatcher._in_progress = {}
+    # ep_arm._action_dispatcher._in_progress = {}
+    # ep_arm.moveto(x=180, y=-80).wait_for_completed()
+    # print('Finished moving arm')
 
     while True:
         try:
@@ -115,15 +119,16 @@ def grab_lego():
                 elif not centered_with_lego:
                     lego_x, _ =  detector.get_closest_lego_coords(image)
                     centered_with_lego = goal_x - threshold <= lego_x <= goal_x + threshold
-                    z_speed = (lego_x - goal_x) / 10
+                    z_speed = (lego_x - goal_x) / 2
                     ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.1)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
                     lego_x, lego_y = detector.get_closest_lego_coords(image)
-                    in_front_of_lego = goal_y - threshold <= lego_y <= goal_y + threshold
-                    x_speed = (goal_y - lego_y) / 200
-                    z_speed = (lego_x - goal_x) / 10
+                    in_front_of_lego = lego_y >= lego_goal_y
+                    x_speed = (lego_goal_y - lego_y) / 20
+                    x_speed = 0.3
+                    z_speed = (lego_x - goal_x) / 5
                     ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
 
                 # Squeeze the gripper
@@ -131,19 +136,23 @@ def grab_lego():
                     ep_gripper.close(power=50)
                     time.sleep(3)
                     ep_gripper.pause()
-                    ep_arm.move(x=0, y=60).wait_for_completed()
+                    ep_arm._action_dispatcher._in_progress = {}
+                    ep_arm.move(x=-20, y=60).wait_for_completed()
                     gripping_lego = True
                 
                 # Grabbed lego => return to main loop
                 else:
-                    return
-            i = (i + 1) % 5  # only run on every n = 5 frames
+                    break
+            i = (i + 1) % 30  # only run on every n = 5 frames
+            print(f'found_lego: {found_lego}')
+            print(f'centered_with_lego: {centered_with_lego}')
+            print(f'in_front_of_lego: {in_front_of_lego}')
+            print(f'gripping_lego: {gripping_lego}')
         except KeyboardInterrupt:
             ep_camera.stop_video_stream()
             ep_robot.close()
             print('Exiting')
             exit(1)
-
 
 # Listens for signals from the picker that a LEGO has been dropped off, and
 # increments the value of legos_waiting correspondingly
@@ -345,18 +354,22 @@ def mainLoop():
         # time.sleep(3)
 
         # Orient to face dropzone and move forward if necessary
-        rotate_to(-180)
+        # ep_arm.move(x=0, y=20)
+        ep_arm.moveto(x=90, y=60)
+        rotate_to(180)
 
         # Extend arm and release
-        ep_arm.moveto(x=200, y=50).wait_for_completed() # move arm to transit position
         ep_gripper.open(power=50)
-        time.sleep(1)
+        time.sleep(3)
         ep_gripper.pause()
         legos_waiting = legos_waiting - 1
         # Retract arm, return to starting position/orientation and loop
-        ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
+        # ep_arm.moveto(x=86, y=-22).wait_for_completed() # move arm to transit position
         # Back up slightly to not knock over any legos
+        ep_chassis._action_dispatcher._in_progress = {}
         ep_chassis.move(x=-0.15, y=0, z=0, xy_speed=0.3).wait_for_completed()
+        ep_arm._action_dispatcher._in_progress = {}
+        ep_arm.moveto(x=180, y=-80).wait_for_completed()
         # Rotate
         rotate_to(0)
         # ep_chassis.move(x=0, y=0, z=180, z_speed=45).wait_for_completed()
@@ -420,7 +433,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_position_graph = (2, 3)
-    dropoff_position_graph = (2, 2)
+    dropoff_position_graph = (2, 3)
     river_position_graph = (8, 11)
 
     if args.left:
@@ -445,6 +458,7 @@ if __name__ == "__main__":
     time.sleep(1/50)
     start_att[0], start_att[1], start_att[2] = att[0], att[1], att[2]
     ep_arm = ep_robot.robotic_arm
+    ep_arm.moveto(x=180, y=-80).wait_for_completed()
     ep_gripper = ep_robot.gripper
     
     host = ''
@@ -464,3 +478,4 @@ if __name__ == "__main__":
     # while True:
     #     print((map == 7).sum())
     mainLoop()
+    # grab_lego()

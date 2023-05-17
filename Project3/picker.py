@@ -100,7 +100,7 @@ def grab_lego():
                         # ep_chassis.move(x=0.1, y=0, z=0, xy_speed=0.1).wait_for_completed()
                     else:
                         x_speed = 0.2
-                        z_speed = (lego_x - lego_goal_x) / 10
+                        z_speed = (lego_x - lego_goal_x) / 5
                         ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
 
                 # Squeeze the gripper

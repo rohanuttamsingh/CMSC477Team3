@@ -28,17 +28,13 @@ NOTE: keep running counter of how many signals received = how many LEGOs dropped
 => also track how many LEGOs placed in dropzone => # LEGOs waiting for pickup (assuming no stealing)
 = (# picker dropoffs) - (# in dropzone)
 
-NOTE 2: in map_right.csv -- 5 = dropoff zone location, 3 = robot starting location, 2 = river waypoint
-
-NOTE 3: cannot use april tags to check robot orientation - must keep track of it using odometry
-
 """
 
 goal_x = 1280 // 2
 lego_goal_y = 485
 threshold = 20
 
-legos_waiting = 1    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
+legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
 map_ = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
 obstacleList = []  # array of tuples denoting the center of all obstacles found
@@ -99,12 +95,9 @@ def grab_lego():
     centered_with_lego = False
     in_front_of_lego = False
     gripping_lego = False
-    # ep_chassis._action_dispatcher._in_progress = {}
-    # print('Moving arm')
-    # ep_chassis._action_dispatcher._in_progress = {}
-    # ep_arm._action_dispatcher._in_progress = {}
-    # ep_arm.moveto(x=180, y=-80).wait_for_completed()
-    # print('Finished moving arm')
+    ep_chassis._action_dispatcher._in_progress = {}
+    ep_arm.moveto(x=183, y=-71)
+    time.sleep(3)
 
     while True:
         try:
@@ -112,14 +105,18 @@ def grab_lego():
             if i == 0:
                 # Spin to find lego
                 if not found_lego:
+                    print("Searching for lego")
                     found_lego = detector.can_see_lego(image)
-                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.1)
+                    ep_arm._action_dispatcher._in_progress = {}
+                    ep_chassis._action_dispatcher._in_progress = {}
+                    ep_chassis.drive_speed(x=0, y=0, z=-10, timeout=0.1)
 
                 # Spin to center lego
                 elif not centered_with_lego:
+                    print("Aligning to lego")
                     lego_x, _ =  detector.get_closest_lego_coords(image)
                     centered_with_lego = goal_x - threshold <= lego_x <= goal_x + threshold
-                    z_speed = (lego_x - goal_x) / 2
+                    z_speed = (lego_x - goal_x) / 5
                     ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.1)
 
                 # Move forward to lego
@@ -439,8 +436,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_position_graph = (2, 3)
-    dropoff_position_graph = (2, 3)
-    river_position_graph = (8, 11)
+    dropoff_position_graph = (2, 2)
+    river_position_graph = (8, 9)
 
     if args.left:
         print('LEFT')
@@ -467,6 +464,13 @@ if __name__ == "__main__":
     ep_arm.moveto(x=180, y=-80).wait_for_completed()
     ep_gripper = ep_robot.gripper
     
+    host = ''
+    port = 13000 
+    buf = 1024 
+    addr = (host, port) 
+    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+    UDPSock.bind(addr) 
+                    
     # tMain = threading.Thread(target=mainLoop)
     # tListener = threading.Thread(target=signalListener)
     # tObstacles = threading.Thread(target=obstacleDetection)

@@ -23,7 +23,7 @@ obstacleList = []  # array of tuples denoting the center of all obstacles found
 
 pos = np.zeros((3,))
 def sub_position_handler(p):
-    pos[0], pos[1], pos[2] = -p[0], -p[1], p[2]
+    pos[0], pos[1], pos[2] = p[0], p[1], p[2]
 
 att = np.zeros((3,))
 start_att = np.zeros((3,))
@@ -327,7 +327,8 @@ def mainLoop():
     print('Straightened')
     # Move slightly backwards
     # ep_chassis._action_dispatcher._in_progress = {} # Need this or it hangs
-    ep_chassis.drive_speed(x=-0.2, y=0, z=0, timeout=1)
+    ep_chassis.drive_speed(x=-0.5, y=0, z=0, timeout=1)
+    time.sleep(1)
     # ep_chassis.move(x=-0.25, y=0, z=0, xy_speed=0.3) #.wait_for_completed()
 
     while True:
@@ -381,7 +382,7 @@ def mainLoop():
         # Move forward and drop lego
         drop_at_river_simple()
         # # Send signal to other robot
-        # host = "192.168.50.4" # set to IP address of target computer 
+        # host = '192.168.50.220'
         # port = 13000 
         # addr = (host, port) 
         # UDPSock = socket(AF_INET, SOCK_DGRAM) 
@@ -486,7 +487,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     start_position_graph = (1, 1)
-    source_position_graph = (13, 3)
+    source_position_graph = (13, 2)
     river_position_graph = (13, 14)
 
     if args.left:
@@ -514,20 +515,13 @@ if __name__ == "__main__":
     ep_arm.moveto(x=86, y=-22).wait_for_completed()
     ep_gripper = ep_robot.gripper
 
-
-    host = '192.168.50.220'
-    port = 13000 
-    buf = 1024 
-    addr = (host, port) 
-    UDPSock = socket(AF_INET, SOCK_DGRAM) 
-
-    tMain = threading.Thread(target=mainLoop)
-    tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
-    tMain.start()
-    tObstacles.start()
+    # tMain = threading.Thread(target=mainLoop)
+    # tObstacles = threading.Thread(target=obstacleDetection)  # replace with obstacle detector
+    # tMain.start()
+    # tObstacles.start()
 
     # obstacleDetection()
 
-    # mainLoop()
+    mainLoop()
     # grab_lego()
     # test_straighten_bot()

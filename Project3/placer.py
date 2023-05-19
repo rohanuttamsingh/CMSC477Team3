@@ -157,6 +157,12 @@ def grab_lego():
 # Listens for signals from the picker that a LEGO has been dropped off, and
 # increments the value of legos_waiting correspondingly
 def signalListener():
+    host = ''
+    port = 13000 
+    buf = 1024 
+    addr = (host, port) 
+    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+    UDPSock.bind(addr) 
     while 1: 
         (data, addr) = UDPSock.recvfrom(buf) 
         print ("Received message: " + data.decode() )
@@ -461,13 +467,6 @@ if __name__ == "__main__":
     ep_arm.moveto(x=180, y=-80).wait_for_completed()
     ep_gripper = ep_robot.gripper
     
-    host = ''
-    port = 13000 
-    buf = 1024 
-    addr = (host, port) 
-    UDPSock = socket(AF_INET, SOCK_DGRAM) 
-    UDPSock.bind(addr) 
-                    
     # tMain = threading.Thread(target=mainLoop)
     # tListener = threading.Thread(target=signalListener)
     # tObstacles = threading.Thread(target=obstacleDetection)

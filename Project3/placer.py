@@ -28,17 +28,13 @@ NOTE: keep running counter of how many signals received = how many LEGOs dropped
 => also track how many LEGOs placed in dropzone => # LEGOs waiting for pickup (assuming no stealing)
 = (# picker dropoffs) - (# in dropzone)
 
-NOTE 2: in map_right.csv -- 5 = dropoff zone location, 3 = robot starting location, 2 = river waypoint
-
-NOTE 3: cannot use april tags to check robot orientation - must keep track of it using odometry
-
 """
 
 goal_x = 1280 // 2
 goal_y = 350
-threshold = 5
+threshold = 15
 
-legos_waiting = 0    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
+legos_waiting = 100    # RUNNING COUNTER OF HOW MANY LEGOS ARE WAITING FOR PICKUP
 
 map_ = np.loadtxt('map_right.csv', delimiter=',', dtype=int)
 obstacleList = []  # array of tuples denoting the center of all obstacles found
@@ -61,7 +57,7 @@ def controller(next_position):
     return K * diff
 
 def rotate_to(yaw_des):
-    K = 1.5
+    K = 1
     diff = yaw_des - att[0]
     while abs(diff) > 3:
         ep_chassis.drive_speed(x=0, y=0, z=K*diff, timeout=0.1)
@@ -100,7 +96,8 @@ def grab_lego():
     in_front_of_lego = False
     gripping_lego = False
     ep_chassis._action_dispatcher._in_progress = {}
-    ep_arm.moveto(x=183, y=-71).wait_for_completed()
+    ep_arm.moveto(x=183, y=-71)
+    time.sleep(3)
 
     while True:
         try:
@@ -108,23 +105,27 @@ def grab_lego():
             if i == 0:
                 # Spin to find lego
                 if not found_lego:
+                    print("Searching for lego")
                     found_lego = detector.can_see_lego(image)
-                    ep_chassis.drive_speed(x=0, y=0, z=-20, timeout=0.1)
+                    ep_arm._action_dispatcher._in_progress = {}
+                    ep_chassis._action_dispatcher._in_progress = {}
+                    ep_chassis.drive_speed(x=0, y=0, z=-10, timeout=0.1)
 
                 # Spin to center lego
                 elif not centered_with_lego:
+                    print("Aligning to lego")
                     lego_x, _ =  detector.get_closest_lego_coords(image)
                     centered_with_lego = goal_x - threshold <= lego_x <= goal_x + threshold
-                    z_speed = (lego_x - goal_x) / 10
+                    z_speed = (lego_x - goal_x) / 5
                     ep_chassis.drive_speed(x=0, y=0, z=z_speed, timeout=0.1)
 
                 # Move forward to lego
                 elif not in_front_of_lego:
                     lego_x, lego_y = detector.get_closest_lego_coords(image)
                     in_front_of_lego = goal_y - threshold <= lego_y <= goal_y + threshold
-                    x_speed = (goal_y - lego_y) / 200
-                    z_speed = (lego_x - goal_x) / 10
-                    ep_chassis.drive_speed(x=x_speed, y=0, z=z_speed, timeout=0.1)
+                    # x_speed = (goal_y - lego_y) / 200
+                    z_speed = (lego_x - goal_x) / 5
+                    ep_chassis.drive_speed(x=0.15, y=0, z=z_speed, timeout=0.1)
 
                 # Squeeze the gripper
                 elif not gripping_lego:
@@ -148,6 +149,12 @@ def grab_lego():
 # Listens for signals from the picker that a LEGO has been dropped off, and
 # increments the value of legos_waiting correspondingly
 def signalListener():
+    host = ''
+    port = 13000 
+    buf = 1024 
+    addr = (host, port) 
+    UDPSock = socket(AF_INET, SOCK_DGRAM) 
+    UDPSock.bind(addr) 
     while 1: 
         (data, addr) = UDPSock.recvfrom(buf) 
         print ("Received message: " + data.decode() )
@@ -421,7 +428,7 @@ if __name__ == "__main__":
 
     start_position_graph = (2, 3)
     dropoff_position_graph = (2, 2)
-    river_position_graph = (8, 11)
+    river_position_graph = (8, 9)
 
     if args.left:
         print('LEFT')
@@ -446,13 +453,6 @@ if __name__ == "__main__":
     start_att[0], start_att[1], start_att[2] = att[0], att[1], att[2]
     ep_arm = ep_robot.robotic_arm
     ep_gripper = ep_robot.gripper
-    
-    host = ''
-    port = 13000 
-    buf = 1024 
-    addr = (host, port) 
-    UDPSock = socket(AF_INET, SOCK_DGRAM) 
-    UDPSock.bind(addr) 
                     
     # tMain = threading.Thread(target=mainLoop)
     # tListener = threading.Thread(target=signalListener)
